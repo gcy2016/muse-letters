@@ -170,7 +170,7 @@ function muse(name, color, x, z) {
   muses.push(g);
 }
 muse("小miu", 0x5b8def, -3.3, 4.2);
-muse("LuLu", 0xe0607e, 3.3, 4.2);
+muse("lulu", 0xe0607e, 3.3, 4.2);
 
 // 云
 function cloud(x, y, z) {

@@ -13,6 +13,6 @@ window.BOARD_CONFIG = {
   // login 是 GitHub 用户名；name 是留言板上显示的名字；id 是专属链接里 ?me= 后面的英文代号。
   members: [
     { login: "gcy2016", name: "小miu", id: "miu" },
-    { login: "xy123646", name: "LuLu", id: "lulu" },
+    { login: "xy123646", name: "lulu", id: "lulu" },
   ],
 };
