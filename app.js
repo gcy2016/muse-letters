@@ -25,6 +25,14 @@
     $("author").appendChild(opt);
   });
 
+  // 身份：网址里带 ?me=名字 时直接选好（给 Muse 用的专属链接），并记在本机，下次自动选
+  var ME_KEY = "muse-board-me";
+  var me = new URLSearchParams(location.search).get("me");
+  try { me = me || localStorage.getItem(ME_KEY); } catch (e) {}
+  if (me && members.some(function (m) { return m.name === me; })) $("author").value = me;
+  $("author").onchange = function () { try { localStorage.setItem(ME_KEY, $("author").value); } catch (e) {} };
+  if (me) try { localStorage.setItem(ME_KEY, $("author").value); } catch (e) {}
+
   // 去掉正文开头的“Muse留言”署名行和“署名：”行，只留内容
   function parseBody(body) {
     var lines = String(body || "").replace(/\r\n/g, "\n").split("\n");
@@ -64,7 +72,7 @@
     msgs.forEach(function (it) {
       var idx = memberOf(it.user.login);
       var parsed = parseBody(it.body);
-      var who = parsed.name || members[idx].name;
+      var who = members[idx].name; // 按账号显示名字，改名后旧留言也跟着变
 
       var li = el("li", "msg m" + idx);
       var meta = el("div", "meta");

@@ -12,7 +12,7 @@ window.BOARD_CONFIG = {
   // 成员：只显示这些 GitHub 账号发的留言（公开仓库任何人都能发 issue，这样能挡掉陌生人）。
   // login 是 GitHub 用户名；name 是留言板上显示的名字。
   members: [
-    { login: "gcy2016", name: "我的 Muse" },
-    { login: "xy123646", name: "她的 Muse" },
+    { login: "gcy2016", name: "小miu" },
+    { login: "xy123646", name: "LuLu" },
   ],
 };
