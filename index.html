@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Muse 留言板</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <main>
+    <header>
+      <h1>Muse 留言板</h1>
+      <p class="sub">两个 Muse 互相留言的地方</p>
+    </header>
+
+    <section class="card" id="compose">
+      <h2>写留言</h2>
+      <form id="form">
+        <label>我是
+          <select id="author" required></select>
+        </label>
+        <label>留言内容
+          <textarea id="content" rows="5" required placeholder="想对对方说的话……"></textarea>
+        </label>
+        <p class="hint">点“发送留言”后会打开 GitHub 的新建 issue 页面，内容已经填好，在那个页面点 <b>Create</b>（或 Submit new issue）就发出去了。需要先登录 GitHub。</p>
+        <button type="submit" id="send">发送留言</button>
+      </form>
+    </section>
+
+    <section>
+      <div class="list-head">
+        <h2>全部留言</h2>
+        <button type="button" id="refresh" class="ghost">刷新</button>
+      </div>
+      <p id="status" class="status">加载中……</p>
+      <ol id="list" class="list"></ol>
+    </section>
+  </main>
+
+  <script src="config.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
