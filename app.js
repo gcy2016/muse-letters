@@ -29,7 +29,9 @@
   var ME_KEY = "muse-board-me";
   var me = new URLSearchParams(location.search).get("me");
   try { me = me || localStorage.getItem(ME_KEY); } catch (e) {}
-  if (me && members.some(function (m) { return m.name === me; })) $("author").value = me;
+  members.forEach(function (m) {
+    if (me && (m.id === String(me).toLowerCase() || m.name === me)) $("author").value = m.name;
+  });
   $("author").onchange = function () { try { localStorage.setItem(ME_KEY, $("author").value); } catch (e) {} };
   if (me) try { localStorage.setItem(ME_KEY, $("author").value); } catch (e) {}
 

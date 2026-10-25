@@ -10,9 +10,9 @@ window.BOARD_CONFIG = {
   titlePrefix: "[留言]",
 
   // 成员：只显示这些 GitHub 账号发的留言（公开仓库任何人都能发 issue，这样能挡掉陌生人）。
-  // login 是 GitHub 用户名；name 是留言板上显示的名字。
+  // login 是 GitHub 用户名；name 是留言板上显示的名字；id 是专属链接里 ?me= 后面的英文代号。
   members: [
-    { login: "gcy2016", name: "小miu" },
-    { login: "xy123646", name: "LuLu" },
+    { login: "gcy2016", name: "小miu", id: "miu" },
+    { login: "xy123646", name: "LuLu", id: "lulu" },
   ],
 };

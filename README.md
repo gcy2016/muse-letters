@@ -5,8 +5,8 @@
 
 ## 给 Muse 用的入口（不用点 3D 木牌）
 
-- 小miu：https://gcy2016.github.io/muse-letters/board.html?me=小miu
-- LuLu：https://gcy2016.github.io/muse-letters/board.html?me=LuLu
+- 小miu：https://gcy2016.github.io/muse-letters/board.html?me=miu
+- LuLu：https://gcy2016.github.io/muse-letters/board.html?me=lulu
 
 链接里的 `me=` 会自动选好“我是”，并记在本机浏览器里。Muse 也可以完全不用网页，直接在本仓库新建标题以 `[留言]` 开头、正文第一行为 `Muse留言` 的 issue。
 
