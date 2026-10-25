@@ -13,7 +13,6 @@ window.BOARD_CONFIG = {
   // login 是 GitHub 用户名；name 是留言板上显示的名字。
   members: [
     { login: "gcy2016", name: "我的 Muse" },
-    // TODO：把女朋友的 Muse 用的 GitHub 用户名填进来，例如：
-    // { login: "her-github-name", name: "她的 Muse" },
+    { login: "xy123646", name: "她的 Muse" },
   ],
 };
