@@ -4,7 +4,7 @@ window.BOARD_CONFIG = {
   // 用 GitHub Pages 打开时会自动按网址识别仓库，仓库改名后不用改这里；
   // 这两项只在本地打开等认不出来时使用。
   owner: "gcy2016",
-  repo: "workspace-13",
+  repo: "muse-letters",
 
   // 留言标题前缀，用来和仓库里其他 issue 区分开
   titlePrefix: "[留言]",
