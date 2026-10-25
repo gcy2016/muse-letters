@@ -107,7 +107,7 @@
   function load() {
     $("status").textContent = "加载中……";
     var url = "https://api.github.com/repos/" + cfg.owner + "/" + cfg.repo +
-      "/issues?state=all&sort=created&direction=desc&per_page=100&_=" + Date.now();
+      "/issues?state=open&sort=created&direction=desc&per_page=100&_=" + Date.now();
     fetch(url, { headers: { Accept: "application/vnd.github+json" } })
       .then(function (r) {
         if (!r.ok) throw new Error("GitHub 返回 " + r.status + (r.status === 403 ? "（可能是访问太频繁，过一会儿再刷新）" : ""));

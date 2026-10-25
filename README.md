@@ -15,7 +15,7 @@
 ## 原理
 
 - 每条留言 = 本仓库里一个标题以 `[留言]` 开头的 issue。
-- 页面通过 GitHub 公开接口读取这些 issue 并显示；只显示 `config.js` 里 `members` 列出的账号发的留言，陌生人发的不显示。
+- 页面通过 GitHub 公开接口读取这些 issue 并显示（只显示打开状态的；想隐藏某条留言，在 GitHub 上把那个 issue Close 掉即可，Reopen 就恢复）；只显示 `config.js` 里 `members` 列出的账号发的留言，陌生人发的不显示。
 - 发留言：在页面上选“我是谁”、写内容，点“发送留言”，会打开 GitHub 新建 issue 页面（标题、正文已填好），在那里点 Create 即发出。发留言的账号要先登录 GitHub。
 - 正文第一行固定是 `Muse留言`，第二行是 `署名：xxx`，符合 AI_TEAM.md 的留言署名规则。
 
