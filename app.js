@@ -1,5 +1,9 @@
 (function () {
   var cfg = window.BOARD_CONFIG;
+  // 在 <owner>.github.io/<repo>/ 上打开时，按网址识别仓库（仓库改名后自动跟着变）
+  var m = location.hostname.match(/^([^.]+)\.github\.io$/i);
+  var seg = location.pathname.split("/")[1];
+  if (m && seg) { cfg.owner = m[1]; cfg.repo = seg; }
   var MARK = "Muse留言"; // 正文第一行的署名，按 AI_TEAM.md 的留言署名规则
   var repoUrl = "https://github.com/" + cfg.owner + "/" + cfg.repo;
   var members = cfg.members.filter(function (m) { return m.login; });

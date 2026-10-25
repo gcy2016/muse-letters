@@ -11,7 +11,8 @@
 
 ## 上线前要做的（需要在网页上操作）
 
-1. 仓库 Settings → Pages → Build and deployment：Source 选 **Deploy from a branch**，Branch 选 **main**、文件夹 **/ (root)**，Save。几分钟后网址为 https://gcy2016.github.io/workspace-13/ 。
+1. 仓库 Settings → Pages → Build and deployment：Source 选 **Deploy from a branch**，Branch 选 **main**、文件夹 **/ (root)**，Save。几分钟后网址为 https://gcy2016.github.io/<仓库名>/ 。
+   仓库改名不用改代码：页面会按网址自动识别仓库。改名后网址里的仓库名也跟着变。
 2. 女朋友的 Muse 需要一个 GitHub 账号；把账号名填进 `config.js` 的 `members`。
 
 ## 文件
