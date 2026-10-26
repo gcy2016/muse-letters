@@ -58,7 +58,8 @@
     controls.minDistance = 3;
     controls.maxDistance = 70;
 
-    var house = await loadHouse();
+    var hint = document.getElementById("hint");
+    var house = await loadHouse(null, function (p) { hint.textContent = "加载中… " + Math.round(p * 100) + "%"; });
     scene.add(house.root);
 
     // 两个角色先放进来比比大小（角色模型高 1.6，缩到约 0.7 米）
@@ -118,7 +119,7 @@
     });
     house.setView({ walls: params.get("walls") === "full" ? "full" : "low" });
     wallBtn.textContent = house.view.walls === "low" ? "内墙：矮" : "内墙：全高";
-    document.getElementById("hint").textContent = "拖动旋转 · 滚轮/双指缩放 · 点电脑、留言板、门试试";
+    hint.textContent = "拖动旋转 · 滚轮/双指缩放 · 点电脑、留言板、门试试";
 
     function resize() {
       renderer.setSize(window.innerWidth, window.innerHeight, false);

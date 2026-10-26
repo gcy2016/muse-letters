@@ -2,7 +2,7 @@
 // 模型单位是米，地面 y=0，房子前门朝 +z，房子中心大致在原点。不管以后互动空间做成什么样，都按下面的接口用：
 //
 //   import { loadHouse, addHouseLights } from "./house.js";
-//   var house = await loadHouse();
+//   var house = await loadHouse();     // 可传 loadHouse(null, function (p) { 进度 0~1 })
 //   scene.add(house.root);
 //   house.update(camera);              // 每帧调用：挡住视线的墙自动藏起来（像娃娃屋那样剖开看）
 //   house.setView({ room: "living" }); // 只看一个房间；{ room: null } 回到全屋；{ walls: "full" | "low" } 内墙全高 / 矮墙
@@ -13,13 +13,18 @@
 import * as THREE from "three";
 import { GLTFLoader } from "./lib/GLTFLoader.js";
 import { RoomEnvironment } from "./lib/RoomEnvironment.js";
+import { MeshoptDecoder } from "./lib/meshopt_decoder.module.js";
 
 export var HOUSE_URL = new URL("./assets/house/house.glb", import.meta.url).href;
 var LOW_WALL = 1.0;   // 矮墙模式下内墙的高度
 var STUB_WALL = 0.12; // 挡住视线的墙只留这么高的墙脚（门照样立着）
 
-export function loadHouse(url) {
-  return new GLTFLoader().loadAsync(url || HOUSE_URL).then(function (gltf) { return makeHouse(gltf.scene); });
+// onProgress(已下载比例 0~1)：模型约 1 MB，网慢时用来显示进度
+export function loadHouse(url, onProgress) {
+  var loader = new GLTFLoader().setMeshoptDecoder(MeshoptDecoder);
+  return loader.loadAsync(url || HOUSE_URL, function (e) {
+    if (onProgress && e.total) onProgress(e.loaded / e.total);
+  }).then(function (gltf) { return makeHouse(gltf.scene); });
 }
 
 function makeHouse(root) {

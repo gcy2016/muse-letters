@@ -1,5 +1,6 @@
 # 房屋模型构建脚本：方案 B 的客厅（living-room.blend）+ 方案 C 的家具（cozy-home-interiors）拼成整套房子，导出 assets/house/house.glb。
-# 运行：python tools/build_house.py   （加参数 split 只打印方案 B 拆出来的零件，不导出；需要 Blender 的 Python 模块 bpy 5.x，例如 uv venv -p 3.11 && uv pip install bpy==5.0.1）
+# 运行：python tools/build_house.py   （加参数 split 只打印方案 B 拆出来的零件，不导出；需要 Blender 的 Python 模块 bpy 5.x，例如 uv venv -p 3.11 && uv pip install bpy==5.0.1；
+#   最后一步用 npx 调 gltfpack 压缩，需要装好 Node.js）
 # 坐标用 Blender 的：x 向右，y 向后（屋子后墙在 +y），z 向上，单位米，地面 z=0。导出 GLB 后变成 three.js 的 y 向上、前方 +z。
 # 户型改了只需要改下面“户型”一节的数字，再跑一遍。
 import bpy, bmesh, sys, os, math, zipfile, tempfile
@@ -504,7 +505,15 @@ for o in list(bpy.data.objects):  # 不属于房子的东西（B 文件里剩下
     top = o
     while top.parent: top = top.parent
     if top != ROOT: print("NOT IN HOUSE:", o.name); bpy.data.objects.remove(o)
+# B 的贴图 2048 → 1024（手机上看不出差别，下载小很多）
+for img in bpy.data.images:
+    if img.size[0] > 1024:
+        img.scale(img.size[0] // 2, img.size[1] // 2)
 os.makedirs(os.path.dirname(OUT), exist_ok=True)
-bpy.ops.export_scene.gltf(filepath=OUT, export_format="GLB", export_extras=True, export_yup=True,
-                          export_cameras=False, export_lights=False, export_image_format="AUTO", export_apply=False)
-print("WROTE", OUT, os.path.getsize(OUT))
+RAW = os.path.join(tempfile.mkdtemp(), "house-raw.glb")
+bpy.ops.export_scene.gltf(filepath=RAW, export_format="GLB", export_extras=True, export_yup=True,
+                          export_cameras=False, export_lights=False, export_image_format="JPEG", export_jpeg_quality=85, export_apply=False)
+# 用 gltfpack 压缩（量化 + meshopt），3 MB 多压到 1 MB 以内。要保留节点名（-kn）和自定义数据（-ke），house.js 靠它们找墙、房间和位置点
+import subprocess
+subprocess.run(["npx", "--yes", "gltfpack@0.22.0", "-i", RAW, "-o", OUT, "-cc", "-kn", "-km", "-ke"], check=True)
+print("WROTE", OUT, os.path.getsize(OUT), "(未压缩", os.path.getsize(RAW), ")")
