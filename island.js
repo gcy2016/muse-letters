@@ -1,6 +1,7 @@
 // Muse 小岛：最简单的三维场景。点木牌打开留言板（board.html）。
 import * as THREE from "three";
 import { OrbitControls } from "./lib/OrbitControls.js";
+import { createMiu } from "./miu.js";
 
 var canvas = document.getElementById("scene");
 var renderer = new THREE.WebGLRenderer({ canvas: canvas, antialias: true });
@@ -28,6 +29,7 @@ var sun = new THREE.DirectionalLight(0xfff2d6, 1.6);
 sun.position.set(12, 20, 8);
 sun.castShadow = true;
 sun.shadow.mapSize.set(1024, 1024);
+sun.shadow.normalBias = 0.04; // 圆滚滚的模型上不出条纹
 var sc = sun.shadow.camera;
 sc.left = sc.bottom = -14; sc.right = sc.top = 14;
 scene.add(sun);
@@ -137,7 +139,7 @@ sign.add(signBoard);
 sign.position.set(0, GROUND, 2.6);
 island.add(sign);
 
-// 两个 Muse 的小人（占位形象，以后换成真实形象）
+// 两个 Muse 的角色：小miu 是橘白博美（miu.js）；lulu 还是占位小人，等参考图
 function nameTexture(text, color) {
   var c = document.createElement("canvas");
   c.width = 256; c.height = 80;
@@ -153,23 +155,29 @@ function nameTexture(text, color) {
   return t;
 }
 var muses = [];
-function muse(name, color, x, z) {
+function muse(name, color, x, z, body) {
   var g = new THREE.Group();
-  g.add(mesh(new THREE.CapsuleGeometry(0.35, 0.5, 4, 10), mat(color, { flatShading: false }), 0, 0.6, 0));
-  g.add(mesh(new THREE.SphereGeometry(0.38, 16, 12), mat(0xffe0c4, { flatShading: false }), 0, 1.35, 0));
-  var eyeMat = mat(0x333333);
-  g.add(mesh(new THREE.SphereGeometry(0.05, 8, 6), eyeMat, -0.13, 1.4, 0.34));
-  g.add(mesh(new THREE.SphereGeometry(0.05, 8, 6), eyeMat, 0.13, 1.4, 0.34));
+  if (body) g.add(body);
+  else placeholder(g, color);
   var label = new THREE.Sprite(new THREE.SpriteMaterial({ map: nameTexture(name, "#" + color.toString(16).padStart(6, "0")), depthTest: false }));
   label.scale.set(2, 0.62, 1);
-  label.position.y = 2.3;
+  label.position.y = 2.45;
   g.add(label);
   g.position.set(x, GROUND, z);
   g.rotation.y = x < 0 ? 0.5 : -0.5;
   island.add(g);
   muses.push(g);
 }
-muse("小miu", 0x5b8def, -3.3, 4.2);
+function placeholder(g, color) {
+  g.add(mesh(new THREE.CapsuleGeometry(0.35, 0.5, 4, 10), mat(color, { flatShading: false }), 0, 0.6, 0));
+  g.add(mesh(new THREE.SphereGeometry(0.38, 16, 12), mat(0xffe0c4, { flatShading: false }), 0, 1.35, 0));
+  var eyeMat = mat(0x333333);
+  g.add(mesh(new THREE.SphereGeometry(0.05, 8, 6), eyeMat, -0.13, 1.4, 0.34));
+  g.add(mesh(new THREE.SphereGeometry(0.05, 8, 6), eyeMat, 0.13, 1.4, 0.34));
+}
+var miu = createMiu();
+miu.scale.setScalar(1.2); // 和 lulu 差不多高
+muse("小miu", 0x5b8def, -3.3, 4.2, miu);
 muse("lulu", 0xe0607e, 3.3, 4.2);
 
 // 云
@@ -231,12 +239,13 @@ function resize() {
 window.addEventListener("resize", resize);
 resize();
 
-// 动画：木牌轻轻晃、小人轻轻跳、云飘
+// 动画：木牌轻轻晃、小人轻轻跳、小miu 摇尾巴、云飘
 var clock = new THREE.Clock();
 renderer.setAnimationLoop(function () {
   var t = clock.getElapsedTime();
   signBoard.rotation.z = Math.sin(t * 1.2) * 0.02;
   muses.forEach(function (m, i) { m.position.y = GROUND + Math.abs(Math.sin(t * 2 + i * 1.5)) * 0.15; });
+  miu.userData.tail.rotation.z = Math.sin(t * 6) * 0.12; // 摇尾巴
   clouds.forEach(function (c, i) { c.position.x += 0.004 * (i + 1); if (c.position.x > 40) c.position.x = -40; });
   water.position.y = Math.sin(t * 0.8) * 0.05;
   controls.update();
