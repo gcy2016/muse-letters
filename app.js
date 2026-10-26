@@ -58,7 +58,16 @@
     return e;
   }
 
-  function render(issues) {
+  // 只留渲染要用的字段，缓存小一点
+  function slim(it) {
+    return {
+      number: it.number, title: it.title, body: it.body, created_at: it.created_at,
+      html_url: it.html_url, comments: it.comments, user: { login: it.user.login },
+      pull_request: it.pull_request ? true : undefined,
+    };
+  }
+
+  function render(issues, note) {
     var list = $("list");
     list.innerHTML = "";
     var msgs = issues.filter(function (it) {
@@ -67,10 +76,10 @@
         memberOf(it.user.login) >= 0;
     });
     if (!msgs.length) {
-      $("status").textContent = "还没有留言，来写第一条吧。";
+      $("status").textContent = note || "还没有留言，来写第一条吧。";
       return;
     }
-    $("status").textContent = "共 " + msgs.length + " 条留言（最新的在最上面）";
+    $("status").textContent = note || "共 " + msgs.length + " 条留言（最新的在最上面）";
     msgs.forEach(function (it) {
       var idx = memberOf(it.user.login);
       var parsed = parseBody(it.body);
@@ -104,17 +113,85 @@
     });
   }
 
-  function load() {
-    $("status").textContent = "加载中……";
+  // 加载策略（国内连 GitHub 接口常要几十秒，数据本身很小）：
+  // 1. 先用本机缓存的上次列表立刻显示，再在后台拉新的；
+  // 2. 不加防缓存参数，用 cache:"no-cache" 让浏览器带 ETag 去问，没变化时只回 304，不重复下载，也不占每小时 60 次额度；
+  // 3. 每次只拉最近 PER_PAGE 条，更早的点“加载更早的留言”再拉。
+  var PER_PAGE = 30;
+  var CACHE_KEY = "muse-board-cache:" + cfg.owner + "/" + cfg.repo;
+  var issues = [];
+  var page = 0;
+  var loading = false;
+
+  function readCache() {
+    try { return JSON.parse(localStorage.getItem(CACHE_KEY) || "null"); } catch (e) { return null; }
+  }
+  function writeCache(list) {
+    try { localStorage.setItem(CACHE_KEY, JSON.stringify({ at: Date.now(), issues: list })); } catch (e) {}
+  }
+
+  function fetchPage(n) {
     var url = "https://api.github.com/repos/" + cfg.owner + "/" + cfg.repo +
-      "/issues?state=open&sort=created&direction=desc&per_page=100&_=" + Date.now();
-    fetch(url, { headers: { Accept: "application/vnd.github+json" } })
+      "/issues?state=open&sort=created&direction=desc&per_page=" + PER_PAGE + "&page=" + n;
+    return fetch(url, { headers: { Accept: "application/vnd.github+json" }, cache: "no-cache" })
       .then(function (r) {
         if (!r.ok) throw new Error("GitHub 返回 " + r.status + (r.status === 403 ? "（可能是访问太频繁，过一会儿再刷新）" : ""));
         return r.json();
       })
-      .then(render)
-      .catch(function (e) { $("status").textContent = "加载失败：" + e.message; });
+      .then(function (list) { return list.map(slim); });
+  }
+
+  function setMore(show) {
+    $("more").hidden = !show;
+    $("more").disabled = false;
+    $("more").textContent = "加载更早的留言";
+  }
+
+  function load() {
+    if (loading) return;
+    loading = true;
+    var cached = readCache();
+    var hasCache = cached && cached.issues && cached.issues.length;
+    if (hasCache) render(cached.issues, "正在更新……（先显示的是上次看到的留言）");
+    else $("status").textContent = "加载中……";
+    var slow = setTimeout(function () {
+      if (loading && !hasCache) $("status").textContent = "加载中……（连 GitHub 比较慢，请稍等）";
+    }, 5000);
+
+    fetchPage(1)
+      .then(function (list) {
+        issues = list;
+        page = 1;
+        writeCache(list);
+        render(issues);
+        setMore(list.length === PER_PAGE);
+      })
+      .catch(function (e) {
+        if (hasCache) render(cached.issues, "更新失败（" + e.message + "），下面是上次看到的留言，可点“刷新”重试。");
+        else $("status").textContent = "加载失败：" + e.message;
+      })
+      .then(function () { clearTimeout(slow); loading = false; });
+  }
+
+  function loadMore() {
+    if (loading) return;
+    loading = true;
+    $("more").disabled = true;
+    $("more").textContent = "加载中……";
+    fetchPage(page + 1)
+      .then(function (list) {
+        var seen = {};
+        issues.forEach(function (it) { seen[it.number] = true; });
+        issues = issues.concat(list.filter(function (it) { return !seen[it.number]; }));
+        page += 1;
+        render(issues);
+        setMore(list.length === PER_PAGE);
+      })
+      .catch(function (e) {
+        setMore(true);
+        $("more").textContent = "加载失败，点这里重试（" + e.message + "）";
+      })
+      .then(function () { loading = false; });
   }
 
   // 发送：打开 GitHub 新建 issue 页面，标题和正文都预先填好
@@ -131,5 +208,6 @@
   };
 
   $("refresh").onclick = load;
+  $("more").onclick = loadMore;
   load();
 })();
