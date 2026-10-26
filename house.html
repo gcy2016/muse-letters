@@ -1,0 +1,184 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+  <title>房屋模型</title>
+  <style>
+    html, body { margin: 0; height: 100%; overflow: hidden; background: #f4efe8; font-family: -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif; }
+    #scene { display: block; width: 100%; height: 100%; touch-action: none; }
+    #bar { position: fixed; left: 12px; right: 12px; top: 10px; display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+    #bar button {
+      padding: 7px 13px; border: none; border-radius: 18px; background: rgba(255, 255, 255, 0.9); color: #5a4636;
+      font-size: 14px; cursor: pointer; box-shadow: 0 1px 4px rgba(0, 0, 0, .12);
+    }
+    #bar button.on { background: #e0607e; color: #fff; }
+    #bar .gap { width: 8px; }
+    #hint {
+      position: fixed; left: 50%; bottom: 18px; transform: translateX(-50%); max-width: calc(100% - 32px);
+      background: rgba(255, 255, 255, 0.88); color: #5a4636; padding: 7px 14px; border-radius: 18px; font-size: 13px; text-align: center; pointer-events: none;
+    }
+    #panel { position: fixed; inset: 0; display: none; background: rgba(20, 30, 40, 0.45); }
+    #panel.open { display: block; }
+    #panel .box { position: absolute; inset: 24px; max-width: 720px; margin: 0 auto; background: #fdf6f0; border-radius: 14px; overflow: hidden; box-shadow: 0 10px 40px rgba(0,0,0,.3); }
+    #panel iframe { width: 100%; height: 100%; border: 0; }
+    #panel .msg { padding: 60px 28px; color: #5a4636; font-size: 16px; line-height: 1.8; }
+    #close { position: absolute; right: 10px; top: 10px; z-index: 1; width: 36px; height: 36px; border-radius: 50%; border: none; background: #e0607e; color: #fff; font-size: 20px; cursor: pointer; }
+    @media (max-width: 600px) { #panel .box { inset: 10px; } #bar button { padding: 6px 10px; font-size: 13px; } }
+  </style>
+  <script type="importmap">
+    { "imports": { "three": "./lib/three.module.min.js" } }
+  </script>
+</head>
+<body>
+  <canvas id="scene"></canvas>
+  <div id="bar"></div>
+  <div id="hint">加载中…</div>
+  <div id="panel"><div class="box"><button id="close" type="button">×</button><div id="content"></div></div></div>
+  <script type="module">
+    // 房屋模型预览页。?room=living 直接看某个房间；?walls=full 内墙全高；?az=0.8&el=0.7 固定视角（截图用）
+    import * as THREE from "three";
+    import { OrbitControls } from "./lib/OrbitControls.js";
+    import { loadHouse, addHouseLights } from "./house.js";
+    import { createMiu } from "./miu.js";
+    import { createLulu } from "./lulu.js";
+
+    var params = new URLSearchParams(location.search);
+    var canvas = document.getElementById("scene");
+    var renderer = new THREE.WebGLRenderer({ canvas: canvas, antialias: true, preserveDrawingBuffer: true });
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    var scene = new THREE.Scene();
+    scene.background = new THREE.Color(0xf4efe8);
+    addHouseLights(scene, renderer);
+
+    var camera = new THREE.PerspectiveCamera(32, 1, 0.1, 200);
+    var controls = new OrbitControls(camera, canvas);
+    controls.enableDamping = true;
+    controls.maxPolarAngle = Math.PI * 0.45;
+    controls.minDistance = 3;
+    controls.maxDistance = 70;
+
+    var house = await loadHouse();
+    scene.add(house.root);
+
+    // 两个角色先放进来比比大小（角色模型高 1.6，缩到约 0.7 米）
+    var AVATAR_SCALE = 0.45;
+    var cast = [];
+    function putAvatar(avatar, spotId) {
+      var s = house.spots[spotId];
+      avatar.scale.setScalar(AVATAR_SCALE);
+      avatar.position.copy(s.position);
+      avatar.rotation.y = s.rotationY;
+      avatar.userData.room = s.room;
+      scene.add(avatar);
+      cast.push(avatar);
+    }
+    putAvatar(createMiu(), "living");
+    putAvatar(createLulu(), "tv");
+
+    // 视角：全屋或某个房间。az 水平角（0 正前方），el 仰角
+    var fixed = params.has("az");
+    var az = fixed ? +params.get("az") : 0.75, el = fixed ? +(params.get("el") || 0.75) : 0.75;
+    var goal = null;
+    function frame(roomId, instant) {
+      var r = roomId ? house.rooms[roomId] : null;
+      var target = r ? r.center.clone().setY(0.9) : new THREE.Vector3(0, 0.6, 0.2);
+      var size = r ? Math.max(r.x1 - r.x0, r.z1 - r.z0) : 11;
+      // 按窄的那个方向（竖屏手机是水平方向）把整个房间装进画面
+      var half = Math.tan(THREE.MathUtils.degToRad(camera.fov / 2)) * Math.min(1, camera.aspect);
+      var dist = size * 0.68 / half + 2.5;
+      var pos = target.clone().add(new THREE.Vector3(Math.sin(az) * Math.cos(el), Math.sin(el), Math.cos(az) * Math.cos(el)).multiplyScalar(dist));
+      if (instant) { camera.position.copy(pos); controls.target.copy(target); goal = null; }
+      else goal = { pos: pos, target: target };
+    }
+
+    var bar = document.getElementById("bar");
+    var buttons = {};
+    function button(id, text, onClick) {
+      var b = document.createElement("button");
+      b.type = "button"; b.textContent = text; b.onclick = onClick;
+      bar.appendChild(b);
+      buttons[id] = b;
+      return b;
+    }
+    function showRoom(id, instant) {
+      house.setView({ room: id });
+      cast.forEach(function (a) { a.visible = !id || a.userData.room === id; });
+      Object.keys(buttons).forEach(function (k) { if (k.indexOf("room:") === 0) buttons[k].classList.toggle("on", k === "room:" + (id || "")); });
+      frame(id, instant);
+    }
+    button("room:", "全屋", function () { showRoom(null); });
+    ["living", "kitchen", "study", "bedroom", "entry"].forEach(function (id) {
+      button("room:" + id, house.rooms[id].label, function () { showRoom(id); });
+    });
+    bar.appendChild(Object.assign(document.createElement("span"), { className: "gap" }));
+    var wallBtn = button("walls", "", function () {
+      house.setView({ walls: house.view.walls === "low" ? "full" : "low" });
+      wallBtn.textContent = house.view.walls === "low" ? "内墙：矮" : "内墙：全高";
+    });
+    house.setView({ walls: params.get("walls") === "full" ? "full" : "low" });
+    wallBtn.textContent = house.view.walls === "low" ? "内墙：矮" : "内墙：全高";
+    document.getElementById("hint").textContent = "拖动旋转 · 滚轮/双指缩放 · 点电脑、留言板、门试试";
+
+    function resize() {
+      renderer.setSize(window.innerWidth, window.innerHeight, false);
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+    }
+    window.addEventListener("resize", resize);
+    resize();
+    showRoom(house.rooms[params.get("room")] ? params.get("room") : null, true);
+
+    // 点击：电脑 / 留言板 / 门
+    var panel = document.getElementById("panel"), content = document.getElementById("content");
+    function open(html) { content.innerHTML = html; panel.classList.add("open"); }
+    document.getElementById("close").onclick = function () { panel.classList.remove("open"); content.innerHTML = ""; };
+    var NOTES = {
+      computer: "<div class='msg'><b>电脑</b><br>以后在这里放入口：旅行相册、小游戏等（等 PRD 定）。</div>",
+      door: "<div class='msg'><b>入户门</b><br>以后可以从这里出门，去小岛或别的地方（等 PRD 定）。</div>",
+      tv: "<div class='msg'><b>电视</b><br>以后可以放视频或照片（等 PRD 定）。</div>",
+    };
+    var raycaster = new THREE.Raycaster(), pointer = new THREE.Vector2(), down = null;
+    function hit(e) {
+      var rect = canvas.getBoundingClientRect();
+      pointer.set(((e.clientX - rect.left) / rect.width) * 2 - 1, -((e.clientY - rect.top) / rect.height) * 2 + 1);
+      raycaster.setFromCamera(pointer, camera);
+      return house.pick(raycaster);
+    }
+    canvas.addEventListener("pointerdown", function (e) { down = { x: e.clientX, y: e.clientY }; goal = null; });
+    canvas.addEventListener("pointerup", function (e) {
+      if (!down) return;
+      var moved = Math.abs(e.clientX - down.x) + Math.abs(e.clientY - down.y);
+      down = null;
+      if (moved > 6) return;
+      var h = hit(e);
+      if (!h) return;
+      if (h.id === "board") open("<iframe src='board.html'></iframe>");
+      else if (NOTES[h.id]) open(NOTES[h.id]);
+    });
+    canvas.addEventListener("pointermove", function (e) {
+      if (e.pointerType !== "mouse") return;
+      var h = hit(e);
+      canvas.style.cursor = h && (h.id === "board" || NOTES[h.id]) ? "pointer" : "";
+    });
+
+    var clock = new THREE.Clock();
+    renderer.setAnimationLoop(function () {
+      var t = clock.getElapsedTime();
+      if (goal) {
+        camera.position.lerp(goal.pos, 0.12);
+        controls.target.lerp(goal.target, 0.12);
+        if (camera.position.distanceTo(goal.pos) < 0.02) goal = null;
+      }
+      if (!fixed) cast.forEach(function (a) { a.userData.animate(t); });
+      controls.update();
+      house.update(camera);
+      renderer.render(scene, camera);
+    });
+    document.title = "房屋模型";
+    window.HOUSE = house;
+    window.CAMERA = camera;
+    window.READY = true;
+  </script>
+</body>
+</html>

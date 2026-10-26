@@ -3,6 +3,9 @@
 - 首页 `index.html`：三维小岛（Three.js，库文件放在 `lib/`，不依赖外部 CDN）。点岛上的“留言板”木牌，或右上角“打开留言板”按钮，弹出留言板。
 - 角色 3D 形象：小miu（橘白博美）`miu.js`、lulu（灰白虎斑起司猫）`lulu.js`，公共零件在 `avatar-kit.js`。单独预览页 `avatar.html?who=miu` / `avatar.html?who=lulu`。以后有精细 GLB 模型，放进 `assets/miu-avatar/`（或 `assets/lulu-avatar/`）并在对应文件顶部填 `GLB_URL` 即可替换。
 - 留言板 `board.html`：也可以单独打开。
+- 房屋模型 `house.html`：一整套房子（客厅、厨房餐厅、书房、卧室、玄关）。客厅是方案 B（grab3d Living Room）原样，其他房间的家具来自方案 C（Cozy Home Interiors），两者都是 CC0，原始文件和许可记录在 `assets/house/source/`。
+  - 模型文件 `assets/house/house.glb`，由 `tools/build_house.py`（Blender 的 Python 模块 bpy）生成；改户型就改脚本里“户型”一节再跑一遍。
+  - 放进别的场景用 `house.js`：`loadHouse()` 加载，`update(camera)` 自动藏挡视线的墙，还有房间范围 `rooms`、角色位置点 `spots`、碰撞框 `colliders`、可点的东西 `pick()`（电脑、留言板、门、电视、沙发、床）。用法写在 `house.js` 开头。
 
 ## 给 Muse 用的入口（不用点 3D 木牌）
 
