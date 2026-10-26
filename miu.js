@@ -1,7 +1,7 @@
 // 小miu 的 3D 形象：橘白博美（参考图 assets/miu-avatar/）。
 // 全部用代码拼出来的低多边形模型，脸朝 +z，脚踩 y=0，高约 1.6。
 import * as THREE from "three";
-import { GLTFLoader } from "./lib/GLTFLoader.js";
+import { fluff as rawFluff, smooth, clamp01, withGlb } from "./avatar-kit.js";
 
 // 精细模型（GLB）放好后填路径，就会替换下面代码拼的模型；留空则只用代码模型。
 // 例如 "assets/miu-avatar/miu.glb"。模型朝向不对时调 GLB_ROTATE_Y（弧度）。
@@ -13,43 +13,15 @@ var ORANGE = new THREE.Color(0xec9f5e); // 背部、头顶
 var CREAM = new THREE.Color(0xfff2dc); // 胸口、脸颊下半、四肢
 var DEEP = new THREE.Color(0xd5823f); // 背中线、尾巴根部的深橘
 
-// 毛团：带起伏的球（用带索引的球体，法线能平滑过渡），顶点颜色按位置在橘色和奶白之间过渡
-// colorAt(x, y, z) 收到的是模型坐标，返回 0（奶白）~ 1（橘）~ 1.5（深橘）
+// 毛团的颜色：colorAt 返回 0（奶白）~ 1（橘）~ 1.5（深橘）
+var tone = new THREE.Color();
 function fluff(rx, ry, rz, pos, colorAt, bump, detail) {
-  var geo = detail === 2 ? new THREE.SphereGeometry(1, 18, 12) : new THREE.SphereGeometry(1, 36, 24);
-  var p = geo.attributes.position;
-  var colors = new Float32Array(p.count * 3);
-  var v = new THREE.Vector3(), c = new THREE.Color();
-  var amp = bump === undefined ? 0.09 : bump;
-  for (var i = 0; i < p.count; i++) {
-    v.fromBufferAttribute(p, i);
-    // 按方向算起伏，重合的顶点结果相同，不会裂缝
-    var n = Math.sin(v.x * 9.1 + v.y * 3.3) * Math.sin(v.y * 8.3 - v.z * 2.7) * Math.sin(v.z * 7.7 + v.x * 4.1);
-    var s = 1 + amp * n;
-    v.set(v.x * rx * s, v.y * ry * s, v.z * rz * s);
-    p.setXYZ(i, v.x, v.y, v.z);
-    var k = colorAt(v.x + pos[0], v.y + pos[1], v.z + pos[2]);
-    if (k <= 1) c.copy(CREAM).lerp(ORANGE, Math.max(0, k));
-    else c.copy(ORANGE).lerp(DEEP, Math.min(1, k - 1));
-    colors[i * 3] = c.r; colors[i * 3 + 1] = c.g; colors[i * 3 + 2] = c.b;
-  }
-  geo.setAttribute("color", new THREE.BufferAttribute(colors, 3));
-  geo.computeVertexNormals();
-  var m = new THREE.Mesh(geo, new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 1 }));
-  m.position.set(pos[0], pos[1], pos[2]);
-  m.castShadow = true;
-  m.receiveShadow = true;
-  return m;
+  return rawFluff(rx, ry, rz, pos, function (x, y, z) {
+    var k = colorAt(x, y, z);
+    if (k <= 1) return tone.copy(CREAM).lerp(ORANGE, Math.max(0, k));
+    return tone.copy(ORANGE).lerp(DEEP, Math.min(1, k - 1));
+  }, bump, detail);
 }
-
-function smooth(geo, color, x, y, z, opts) {
-  var m = new THREE.Mesh(geo, new THREE.MeshStandardMaterial(Object.assign({ color: color, roughness: 0.5 }, opts || {})));
-  m.position.set(x, y, z);
-  m.castShadow = true;
-  return m;
-}
-
-function clamp01(x) { return Math.max(0, Math.min(1, x)); }
 
 // 身体：越靠上、越靠后越橘；前胸和肚子奶白
 function bodyColor(x, y, z) {
@@ -64,29 +36,7 @@ function headColor(x, y, z) {
 
 // 返回小miu：先放代码模型，有 GLB 的话加载完自动换掉
 export function createMiu() {
-  var root = new THREE.Group();
-  root.name = "小miu";
-  var simple = buildSimple();
-  root.add(simple);
-  root.userData.tail = simple.userData.tail;
-  if (GLB_URL) {
-    new GLTFLoader().load(GLB_URL, function (gltf) {
-      var model = gltf.scene;
-      model.rotation.y = GLB_ROTATE_Y;
-      model.traverse(function (o) { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } });
-      // 统一成高 HEIGHT、脚踩 y=0、居中
-      var box = new THREE.Box3().setFromObject(model);
-      var size = box.getSize(new THREE.Vector3());
-      model.scale.setScalar(HEIGHT / size.y);
-      box.setFromObject(model);
-      var center = box.getCenter(new THREE.Vector3());
-      model.position.set(-center.x, -box.min.y, -center.z);
-      root.remove(simple);
-      root.add(model);
-      root.userData.tail = new THREE.Object3D(); // GLB 没拆出尾巴，摇尾巴动画先停
-    }, undefined, function (err) { console.warn("小miu 模型加载失败，继续用代码模型", err); });
-  }
-  return root;
+  return withGlb("小miu", buildSimple(), GLB_URL, GLB_ROTATE_Y, HEIGHT);
 }
 
 function buildSimple() {
@@ -159,7 +109,7 @@ function buildSimple() {
     tail.add(ball);
   });
   g.add(tail);
-  g.userData.tail = tail;
+  g.userData.animate = function (t) { tail.rotation.z = Math.sin(t * 6) * 0.12; }; // 摇尾巴
 
   return g;
 }

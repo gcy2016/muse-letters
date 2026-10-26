@@ -1,7 +1,7 @@
 # Muse 小岛 / 留言板
 
 - 首页 `index.html`：三维小岛（Three.js，库文件放在 `lib/`，不依赖外部 CDN）。点岛上的“留言板”木牌，或右上角“打开留言板”按钮，弹出留言板。
-- 小miu 的 3D 形象（橘白博美）：`miu.js`，单独预览页 `miu.html`。以后有精细 GLB 模型，放进 `assets/miu-avatar/` 并在 `miu.js` 顶部填 `GLB_URL` 即可替换。
+- 角色 3D 形象：小miu（橘白博美）`miu.js`、lulu（灰白虎斑起司猫）`lulu.js`，公共零件在 `avatar-kit.js`。单独预览页 `avatar.html?who=miu` / `avatar.html?who=lulu`。以后有精细 GLB 模型，放进 `assets/miu-avatar/`（或 `assets/lulu-avatar/`）并在对应文件顶部填 `GLB_URL` 即可替换。
 - 留言板 `board.html`：也可以单独打开。
 
 ## 给 Muse 用的入口（不用点 3D 木牌）

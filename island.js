@@ -2,6 +2,7 @@
 import * as THREE from "three";
 import { OrbitControls } from "./lib/OrbitControls.js";
 import { createMiu } from "./miu.js";
+import { createLulu } from "./lulu.js";
 
 var canvas = document.getElementById("scene");
 var renderer = new THREE.WebGLRenderer({ canvas: canvas, antialias: true });
@@ -139,7 +140,7 @@ sign.add(signBoard);
 sign.position.set(0, GROUND, 2.6);
 island.add(sign);
 
-// 两个 Muse 的角色：小miu 是橘白博美（miu.js）；lulu 还是占位小人，等参考图
+// 两个 Muse 的角色：小miu 是橘白博美（miu.js），lulu 是灰白虎斑起司猫（lulu.js）
 function nameTexture(text, color) {
   var c = document.createElement("canvas");
   c.width = 256; c.height = 80;
@@ -157,8 +158,7 @@ function nameTexture(text, color) {
 var muses = [];
 function muse(name, color, x, z, body) {
   var g = new THREE.Group();
-  if (body) g.add(body);
-  else placeholder(g, color);
+  g.add(body);
   var label = new THREE.Sprite(new THREE.SpriteMaterial({ map: nameTexture(name, "#" + color.toString(16).padStart(6, "0")), depthTest: false }));
   label.scale.set(2, 0.62, 1);
   label.position.y = 2.45;
@@ -168,17 +168,12 @@ function muse(name, color, x, z, body) {
   island.add(g);
   muses.push(g);
 }
-function placeholder(g, color) {
-  g.add(mesh(new THREE.CapsuleGeometry(0.35, 0.5, 4, 10), mat(color, { flatShading: false }), 0, 0.6, 0));
-  g.add(mesh(new THREE.SphereGeometry(0.38, 16, 12), mat(0xffe0c4, { flatShading: false }), 0, 1.35, 0));
-  var eyeMat = mat(0x333333);
-  g.add(mesh(new THREE.SphereGeometry(0.05, 8, 6), eyeMat, -0.13, 1.4, 0.34));
-  g.add(mesh(new THREE.SphereGeometry(0.05, 8, 6), eyeMat, 0.13, 1.4, 0.34));
-}
 var miu = createMiu();
-miu.scale.setScalar(1.2); // 和 lulu 差不多高
+miu.scale.setScalar(1.2); // 猫狗差不多大
 muse("小miu", 0x5b8def, -3.3, 4.2, miu);
-muse("lulu", 0xe0607e, 3.3, 4.2);
+var lulu = createLulu();
+lulu.scale.setScalar(1.3);
+muse("lulu", 0xe0607e, 3.3, 4.2, lulu);
 
 // 云
 function cloud(x, y, z) {
@@ -239,13 +234,14 @@ function resize() {
 window.addEventListener("resize", resize);
 resize();
 
-// 动画：木牌轻轻晃、小人轻轻跳、小miu 摇尾巴、云飘
+// 动画：木牌轻轻晃、角色轻轻跳、摇尾巴、云飘
 var clock = new THREE.Clock();
 renderer.setAnimationLoop(function () {
   var t = clock.getElapsedTime();
   signBoard.rotation.z = Math.sin(t * 1.2) * 0.02;
   muses.forEach(function (m, i) { m.position.y = GROUND + Math.abs(Math.sin(t * 2 + i * 1.5)) * 0.15; });
-  miu.userData.tail.rotation.z = Math.sin(t * 6) * 0.12; // 摇尾巴
+  miu.userData.animate(t);
+  lulu.userData.animate(t);
   clouds.forEach(function (c, i) { c.position.x += 0.004 * (i + 1); if (c.position.x > 40) c.position.x = -40; });
   water.position.y = Math.sin(t * 0.8) * 0.05;
   controls.update();
