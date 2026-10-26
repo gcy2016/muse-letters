@@ -122,6 +122,7 @@
   var issues = [];
   var page = 0;
   var loading = false;
+  var diag = "";
 
   function readCache() {
     try { return JSON.parse(localStorage.getItem(CACHE_KEY) || "null"); } catch (e) { return null; }
@@ -130,11 +131,20 @@
     try { localStorage.setItem(CACHE_KEY, JSON.stringify({ at: Date.now(), issues: list })); } catch (e) {}
   }
 
+  // performance.now() 从打开页面那一刻算起
+  function secs(ms) { return (ms / 1000).toFixed(1) + " 秒"; }
+
   function fetchPage(n) {
+    var start = performance.now();
     var url = "https://api.github.com/repos/" + cfg.owner + "/" + cfg.repo +
       "/issues?state=open&sort=created&direction=desc&per_page=" + PER_PAGE + "&page=" + n;
     return fetch(url, { headers: { Accept: "application/vnd.github+json" }, cache: "no-cache" })
       .then(function (r) {
+        // 诊断信息：接口用时、剩余访问次数，显示在列表下方，方便排查加载慢
+        var left = r.headers.get("X-RateLimit-Remaining");
+        diag = "诊断：页面打开到发出请求 " + secs(start) + "，接口用时 " + secs(performance.now() - start) +
+          "，HTTP " + r.status + (left != null ? "，本小时剩余访问次数 " + left : "");
+        $("diag").textContent = diag;
         if (!r.ok) throw new Error("GitHub 返回 " + r.status + (r.status === 403 ? "（可能是访问太频繁，过一会儿再刷新）" : ""));
         return r.json();
       })
