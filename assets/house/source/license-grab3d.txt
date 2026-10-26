@@ -1,0 +1,10 @@
+License record - Grab3D Living Room
+Source page: https://grab3d.com/models/furniture/living-room/
+License page: https://grab3d.com/license/
+Recorded: 2026-10-26 (Asia/Shanghai), wording as shown on the page that day.
+
+The model page states: "Free under CC0 for personal and commercial use, no attribution."
+The page also shows "$0 - CC0", and its structured data gives the license as
+CC0 1.0 Universal: https://creativecommons.org/publicdomain/zero/1.0/
+
+Files covered: living-room.glb, living-room-light.glb, living-room.blend

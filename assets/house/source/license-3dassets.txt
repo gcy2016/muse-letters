@@ -1,0 +1,11 @@
+License record - 3DAssets.dev Cozy Home Interiors
+Source page: https://3dassets.dev/packs/cozy-home-interiors
+License page: https://3dassets.dev/license
+Recorded: 2026-10-26 (Asia/Shanghai), wording as shown on the page that day.
+
+The pack page FAQ states that every pack on 3DAssets.dev is released under
+CC0 1.0 Universal (public domain): it may be used in a paid game, an app, a
+film or a client project, modified and redistributed, with no credit required.
+The page sidebar states: "CC0 1.0 Universal / Free to use anywhere. No attribution required."
+
+Files covered: cozy-home-interiors-starter-scene.glb, cozy-home-interiors-models.zip
