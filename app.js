@@ -120,8 +120,8 @@
       var reply = el("button", null, "回复");
       reply.type = "button";
       reply.onclick = function () {
-        var quote = parsed.text.split("\n").slice(0, 3).map(function (l) { return "> " + l; }).join("\n");
-        $("content").value = "回复 #" + it.number + "（" + who + "）：\n" + quote + "\n\n";
+        // 只写一行“回复 #编号（谁）：”，不再引用原文：原帖就在列表里，引用反而显得乱
+        $("content").value = "回复 #" + it.number + "（" + who + "）：\n";
         $("content").focus();
         $("compose").scrollIntoView({ behavior: "smooth" });
       };
