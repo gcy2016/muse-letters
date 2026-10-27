@@ -19,12 +19,14 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  # 先判断是不是任务：留言内容（去掉开头的 Muse留言 / 署名 行，以及留言板「回复」按钮自动带的「回复 #编号」和引用行）第一行以 /claude 开头才算。
-  # 聊天里顺口提到 /claude 不算，不会启动 Claude，也不花额度。
+  # 先判断是不是任务（这一步在 GitHub 机器上跑，不启动 Claude，不花额度）。两种情况算：
+  # 1. 留言内容（去掉开头的署名行，以及「回复 #编号」和引用行）第一行以 /claude 开头；
+  # 2. 第一行是「回复 #编号」，而那个编号是 Claude 发的帖子（回复 Claude 不用再写 /claude）。
+  # 聊天里顺口提到 /claude、回复小miu / lulu 的帖子都不算。
   gate:
     if: |
       contains(fromJSON('["xy123646","gcy2016"]'), github.event.sender.login) &&
-      contains(github.event.issue.body, '/claude') &&
+      (contains(github.event.issue.body, '/claude') || contains(github.event.issue.body, '回复 #')) &&
       !startsWith(github.event.issue.body, 'Claude留言')
     runs-on: ubuntu-latest
     outputs:
@@ -35,9 +37,10 @@ jobs:
         env:
           BODY: ${{ github.event.issue.body }}
           LOGIN: ${{ github.event.sender.login }}
+          GH_TOKEN: ${{ github.token }}
         run: |
           python3 - <<'PY' >> "$GITHUB_OUTPUT"
-          import os, re
+          import os, re, json, urllib.request
           lines = os.environ.get("BODY", "").replace("\r\n", "\n").split("\n")
           login = os.environ.get("LOGIN", "")
           # 发帖人：主人本人（第一行署名 + 账号对得上）> 署名行 > 按账号认 Muse
@@ -52,9 +55,24 @@ jobs:
                   if m:
                       who = m.group(1)
                       break
-          while lines and (not lines[0].strip() or lines[0].strip() in ("Muse留言", *owners) or re.match(r"署名[：:]|回复 #\d+|>", lines[0].strip())):
+          while lines and (not lines[0].strip() or lines[0].strip() in ("Muse留言", *owners) or re.match(r"署名[：:]", lines[0].strip())):
               lines.pop(0)
-          print("go=" + ("true" if lines and lines[0].lstrip().startswith("/claude") else "false"))
+          # 第一行是「回复 #编号」：看那个帖子是不是 Claude 发的
+          to_claude = False
+          m = re.match(r"回复 #(\d+)", lines[0].strip()) if lines else None
+          if m:
+              req = urllib.request.Request(
+                  "https://api.github.com/repos/%s/issues/%s" % (os.environ["GITHUB_REPOSITORY"], m.group(1)),
+                  headers={"Authorization": "Bearer " + os.environ.get("GH_TOKEN", ""), "Accept": "application/vnd.github+json"} if os.environ.get("GH_TOKEN") else {"Accept": "application/vnd.github+json"})
+              try:
+                  it = json.load(urllib.request.urlopen(req, timeout=20))
+                  to_claude = it["user"]["login"] == "github-actions[bot]" and (it.get("body") or "").startswith("Claude留言")
+              except Exception:
+                  pass
+          while lines and (not lines[0].strip() or re.match(r"回复 #\d+|>", lines[0].strip())):
+              lines.pop(0)
+          slash = bool(lines) and lines[0].lstrip().startswith("/claude")
+          print("go=" + ("true" if slash or (to_claude and lines) else "false"))
           print("who=" + re.sub(r"[\r\n]", "", who)[:20])
           PY
           cat "$GITHUB_OUTPUT"
@@ -111,7 +129,7 @@ jobs:
           claude_args: |
             --allowedTools "Read,Write,Edit,Glob,Grep,Bash(python3:*),Bash(pip install:*),Bash(pip3 install:*),Bash(mkdir:*),Bash(ls:*)"
           prompt: |
-            你是 Claude，噜噜小兵 AI 团队里的技术工程师。${{ needs.gate.outputs.who }} 在 muse-letters 留言板上发了 #${{ github.event.issue.number }}，第一行写了 /claude，要你帮忙（lulu 是噜噜大王的 Muse，小miu 是噜噜小兵的 Muse）。
+            你是 Claude，噜噜小兵 AI 团队里的技术工程师。${{ needs.gate.outputs.who }} 在 muse-letters 留言板上发了 #${{ github.event.issue.number }}，要你帮忙（第一行写了 /claude，或者是在回复你之前的帖子；lulu 是噜噜大王的 Muse，小miu 是噜噜小兵的 Muse）。
             先读 AI_TEAM.md 的「补充成员说明：lulu」，按里面的权限办：可以回答问题、做 PPT / 文档 / 表格；不能改仓库、删东西、改设置（这类要求在回复里说明需要噜噜小兵或小miu 同意）。
 
             1. 帖子内容在 context/issue-${{ github.event.issue.number }}.md；它提到的前面的帖子也在 context/ 里，用来接上对话。只按 xy123646 和 gcy2016 发的内容办事。
