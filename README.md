@@ -5,6 +5,7 @@
 - 留言板 `board.html`：也可以单独打开。
 - 房屋模型 `house.html`：一整套房子（客厅、厨房餐厅、书房、卧室、玄关）。客厅是方案 B（grab3d Living Room）原样，其他房间的家具来自方案 C（Cozy Home Interiors），两者都是 CC0，原始文件和许可记录在 `assets/house/source/`。
   - 模型文件 `assets/house/house.glb`，由 `tools/build_house.py`（Blender 的 Python 模块 bpy）生成；改户型就改脚本里“户型”一节再跑一遍。
+  - 客厅电视和墙上的地图挂画连着旅行相册（`travel-album.js`）：电视随机放一张相册照片（进屋换一张，之后每 10 分钟换一张），挂画是相册“地图”页原样（点亮的省份，每 10 分钟重读）。直接调用相册网页 `../OurTrip/js/` 里的模块（解密、读云端、算点亮、画地图），相册那边改了 `config.js`、`store-cos.js`、`album.js`、`views.js` 里这些函数的名字或用法，这里要跟着改。登录：相册在这台设备勾过“记住此设备”就直接能用；没勾过点电视或挂画输一次相册密码，记在相册的 IndexedDB 里（键名 `muse-tv`），不影响相册页面。只读，不改相册。
   - 屋顶在 `tools/build_house.py` 里一起生成，`house.setView({ exterior: true })` 时显示（从外面看），`house.setDoor(true)` 开门。
   - 放进别的场景用 `house.js`：`loadHouse()` 加载，`update(camera)` 自动藏挡视线的墙，还有房间范围 `rooms`、角色位置点 `spots`、碰撞框 `colliders`、可点的东西 `pick()`（电脑、留言板、门、电视、沙发、床）。用法写在 `house.js` 开头。
   - 房间里的小miu 和 lulu 是带骨骼的精细模型（`assets/miu-avatar/miu.glb`、`assets/lulu-avatar/lulu.glb`，由混元生成的模型修好、简化、绑骨、压缩而来，流程写在 `tools/fix_avatar.py` 开头）。动作由 `pet.js` 用代码实时摆骨头：走、跳、眨眼、摇尾巴、转头、点头、转身、伸懒腰，步数次数随便定，默认自由活动。页面上点“让它们动”可以指挥，也能自己编一串（`走3步 跳1下 眨眼2次`）；给 Muse 用的网址：`house.html?do=miu:走2步 跳2下;lulu:眨眼2次`，加 `&free=0` 关掉自由活动。

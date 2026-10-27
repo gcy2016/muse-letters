@@ -13,6 +13,7 @@
 //   house.setView({ exterior: true })  // 从外面看：盖上屋顶、墙全部立起来（放进小岛等外部场景时用）；false 回到剖开看
 //   house.setDoor(true)                // 入户门开 / 关（会慢慢转过去）；house.doorOpen 是当前目标状态
 //   house.doorPosition                 // 入户门外侧台阶上的一点（房子坐标），镜头对准门用
+//   house.addItem(obj, { room, wall, interact }) // 往房子里加东西（房子坐标）：跟着房间显示/隐藏；挂在墙上的（wall 是墙的编号）墙被削矮时一起藏起来；interact 是点它时 pick 返回的 id
 import * as THREE from "three";
 import { GLTFLoader } from "./lib/GLTFLoader.js";
 import { RoomEnvironment } from "./lib/RoomEnvironment.js";
@@ -215,7 +216,15 @@ function makeHouse(root) {
   }
 
   var bounds = new THREE.Box3().setFromObject(root);
-  var api = { root: root, rooms: rooms, spots: spots, colliders: colliders, interactables: interactables, walls: walls, bounds: bounds,
+  function addItem(obj, opts) {
+    opts = opts || {};
+    if (opts.interact) { obj.userData.interact = opts.interact; interactables[opts.interact] = obj; }
+    obj.traverse(function (o) { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } });
+    root.add(obj);
+    items.push({ node: obj, room: opts.room || "", wallmount: opts.wall || null, solid: false });
+  }
+
+  var api = { root: root, addItem: addItem, rooms: rooms, spots: spots, colliders: colliders, interactables: interactables, walls: walls, bounds: bounds,
     view: view, setView: setView, update: update, pick: pick, roomAt: roomAt, setDoor: setDoor, doorOpen: false, doorPosition: doorPosition };
   return api;
 }

@@ -24,6 +24,16 @@
     #content { position: absolute; inset: 0; overflow: auto; }
     #panel iframe { display: block; width: 100%; height: 100%; border: 0; }
     #panel .msg { padding: 60px 28px; color: #5a4636; font-size: 16px; line-height: 1.8; }
+    #panel .tv { display: flex; flex-direction: column; height: 100%; box-sizing: border-box; padding: 56px 16px 16px; gap: 10px; color: #5a4636; }
+    #panel .tv img { flex: 1; min-height: 0; width: 100%; object-fit: contain; background: #111; border-radius: 10px; }
+    #panel .tv .info { font-size: 15px; line-height: 1.6; }
+    #panel .tv .row { display: flex; gap: 8px; flex-wrap: wrap; }
+    #panel .tv button, #panel .tv a { padding: 8px 16px; border: none; border-radius: 18px; background: #e0607e; color: #fff; font-size: 15px; text-decoration: none; cursor: pointer; }
+    #panel .tv a { background: #5b8def; }
+    #panel .tv input { padding: 10px; font-size: 18px; border: 1px solid #eadfd6; border-radius: 10px; background: #fdf6f0; }
+    #panel .tv .err { color: #d9534f; min-height: 20px; }
+    #panel .tv .map { flex: 1; min-height: 0; background: #e6edf8; border-radius: 10px; }
+    #panel .tv .map svg { width: 100%; height: 100%; }
     #close { position: absolute; right: 10px; top: 10px; z-index: 1; width: 36px; height: 36px; border-radius: 50%; border: none; background: #e0607e; color: #fff; font-size: 20px; cursor: pointer; }
     #pets {
       position: fixed; left: 12px; bottom: 52px; display: none; width: 300px; max-width: calc(100% - 24px); box-sizing: border-box;
@@ -63,6 +73,7 @@
     import { unlock } from "./lock.js";
     import { loadParcels } from "./parcel-data.js";
     import { makeParcelBoxes } from "./parcel-boxes.js";
+    import { startTravelAlbum } from "./travel-album.js";
 
     var params = new URLSearchParams(location.search);
     var canvas = document.getElementById("scene");
@@ -102,6 +113,8 @@
     var key = await unlock();
     house = await loading;
     scene.add(house.root);
+    // 旅行相册（travel-album.js）：客厅电视随机放照片，客厅墙上挂相册的点亮地图
+    var tv = startTravelAlbum(house);
 
     // 待取件快递（Muse 最新一次 [快递] 留言里的）：玄关门口摆对应个数的快递盒（颜色按城市），点任意一个显示全部待取件
     var parcelGroup = null;
@@ -173,7 +186,7 @@
     });
     house.setView({ walls: params.get("walls") === "full" ? "full" : "low" });
     wallBtn.textContent = house.view.walls === "low" ? "内墙：矮" : "内墙：全高";
-    hint.textContent = "拖动旋转 · 滚轮/双指缩放 · 点电脑、留言板、快递盒试试 · 点门出门";
+    hint.textContent = "拖动旋转 · 滚轮/双指缩放 · 点电视、地图、电脑、留言板、快递盒试试 · 点门出门";
 
     function resize() {
       renderer.setSize(window.innerWidth, window.innerHeight, false);
@@ -194,8 +207,63 @@
     };
     var NOTES = {
       computer: "<div class='msg'><b>电脑</b><br>以后在这里放入口：旅行相册、小游戏等（等 PRD 定）。</div>",
-      tv: "<div class='msg'><b>电视</b><br>以后可以放视频或照片（等 PRD 定）。</div>",
     };
+    // 点墙上的地图：看大图（和相册“地图”页一样），能打开相册的地图页
+    function openMap() {
+      var box = mk("div", { className: "tv" });
+      if (!tv.map) box.append(mk("div", { className: "info", textContent: "地图加载中…" }));
+      else {
+        var pic = mk("div", { className: "map" });
+        pic.innerHTML = tv.map.svg; // 相册网页自己画的地图（SVG），不是外部输入
+        box.append(pic, mk("div", { className: "info" }, [mk("b", { textContent: "我们的足迹 · 已点亮 " + tv.map.lit + "/" + tv.map.total })]));
+      }
+      box.append(mk("div", { className: "row" }, [mk("a", { href: tv.mapUrl, target: "_blank", rel: "noopener", textContent: "打开旅行相册的地图" })]));
+      content.innerHTML = "";
+      content.append(box);
+      panel.classList.add("open");
+    }
+    // 点电视：没登录就输相册密码；登录了看大图（日期、地点），能换一张、打开旅行相册
+    function mk(tag, attrs, kids) {
+      var e = Object.assign(document.createElement(tag), attrs || {});
+      (kids || []).forEach(function (k) { e.append(k); });
+      return e;
+    }
+    function openTv() {
+      var box = mk("div", { className: "tv" });
+      if (tv.state === "locked") {
+        var pw = mk("input", { type: "password", placeholder: "旅行相册的密码", autocomplete: "current-password" });
+        var err = mk("div", { className: "err" });
+        var ok = mk("button", { type: "submit", textContent: "确定" });
+        var form = mk("form", { className: "row" }, [pw, ok]);
+        form.onsubmit = function (ev) {
+          ev.preventDefault();
+          ok.disabled = true; err.textContent = "正在解锁…（要几秒）";
+          tv.login(pw.value).then(openTv, function (e) { ok.disabled = false; err.textContent = e.message || "没解开"; });
+        };
+        box.append(mk("div", { className: "info", innerHTML: "<b>旅行相册</b><br>输一次相册密码，这台设备以后就记住了（只给噜噜之家用）。电视和墙上的地图只看，不会改相册。" }), form, err);
+      } else if (tv.state === "ok") {
+        var p = tv.photo;
+        var info = mk("div", { className: "info" });
+        info.append(mk("b", { textContent: [p.date, p.place].filter(Boolean).join(" · ") || "旅行相册" }));
+        if (p.caption) info.append(mk("div", { textContent: p.caption }));
+        var again = mk("button", { type: "button", textContent: "换一张" });
+        again.onclick = function () { again.disabled = true; tv.next().then(openTv); };
+        box.append(mk("img", { src: p.url, alt: "旅行照片" }), info,
+          mk("div", { className: "row" }, [again, mk("a", { href: tv.albumUrl, target: "_blank", rel: "noopener", textContent: "打开旅行相册" })]));
+      } else {
+        var text = tv.state === "empty" ? "旅行相册里还没有照片。" : tv.state === "error" ? "照片没加载出来：" + tv.error : "照片加载中…";
+        var row = mk("div", { className: "row" }, [mk("a", { href: tv.albumUrl, target: "_blank", rel: "noopener", textContent: "打开旅行相册" })]);
+        if (tv.state === "error") {
+          var retry = mk("button", { type: "button", textContent: "重试" });
+          retry.onclick = function () { tv.retry(); panel.classList.remove("open"); };
+          row.prepend(retry);
+        }
+        box.append(mk("div", { className: "info", textContent: text }), row);
+      }
+      content.innerHTML = "";
+      content.append(box);
+      panel.classList.add("open");
+    }
     var raycaster = new THREE.Raycaster(), pointer = new THREE.Vector2(), down = null;
     function hit(e) {
       var rect = canvas.getBoundingClientRect();
@@ -226,12 +294,14 @@
       if (h.id === "door") goOut();
       else if (h.id === "board") open("<iframe src='board.html'></iframe>");
       else if (h.id === "parcel") open("<iframe src='parcels.html?view=list'></iframe>");
+      else if (h.id === "tv") openTv();
+      else if (h.id === "map") tv.state === "ok" || tv.state === "empty" ? openMap() : openTv();
       else if (NOTES[h.id]) open(NOTES[h.id]);
     });
     canvas.addEventListener("pointermove", function (e) {
       if (e.pointerType !== "mouse") return;
       var h = hit(e);
-      canvas.style.cursor = h && (h.id === "board" || h.id === "parcel" || h.id === "door" || NOTES[h.id]) ? "pointer" : "";
+      canvas.style.cursor = h && (h.id === "board" || h.id === "parcel" || h.id === "door" || h.id === "tv" || h.id === "map" || NOTES[h.id]) ? "pointer" : "";
     });
 
     // 动作面板：选一只，点按钮或者自己编一串（“走3步 跳1下 眨眼2次”）
@@ -288,6 +358,7 @@
     });
     document.title = "噜噜之家";
     window.HOUSE = house;
+    window.TV = tv;
     window.CAMERA = camera;
     window.HOUSE_SCENE = scene;
     window.PETS = pets; // 调试用：PETS[0].play("走2步")
