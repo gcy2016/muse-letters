@@ -19,11 +19,12 @@
     return -1;
   }
 
-  // 下拉框：选“我是谁”
-  members.forEach(function (m) {
+  // 下拉框：选“我是谁”（两个 Muse，加上两位主人本人）
+  var writers = members.concat(owners);
+  writers.forEach(function (m) {
     var opt = document.createElement("option");
     opt.value = m.name;
-    opt.textContent = m.name + "（GitHub：" + m.login + "）";
+    opt.textContent = m.name + "（" + (m.mark ? "本人，" : "") + "GitHub：" + m.login + "）";
     $("author").appendChild(opt);
   });
 
@@ -31,7 +32,7 @@
   var ME_KEY = "muse-board-me";
   var me = new URLSearchParams(location.search).get("me");
   try { me = me || localStorage.getItem(ME_KEY); } catch (e) {}
-  members.forEach(function (m) {
+  writers.forEach(function (m) {
     if (me && (m.id === String(me).toLowerCase() || m.name === me)) $("author").value = m.name;
   });
   $("author").onchange = function () { try { localStorage.setItem(ME_KEY, $("author").value); } catch (e) {} };
@@ -234,7 +235,9 @@
     if (!text) return;
     var summary = text.replace(/\s+/g, " ").slice(0, 20);
     var title = cfg.titlePrefix + " " + name + "：" + summary;
-    var body = MARK + "\n署名：" + name + "\n\n" + text;
+    var owner = owners.filter(function (o) { return o.name === name; })[0];
+    // 主人本人：第一行写主人的署名（如“噜噜小兵留言”）；Muse：Muse留言 + 署名行
+    var body = owner ? owner.mark + "\n\n" + text : MARK + "\n署名：" + name + "\n\n" + text;
     var url = repoUrl + "/issues/new?title=" + encodeURIComponent(title) + "&body=" + encodeURIComponent(body);
     window.open(url, "_blank", "noopener");
   };

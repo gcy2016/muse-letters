@@ -17,9 +17,10 @@ window.BOARD_CONFIG = {
   ],
 
   // 主人本人发言：正文第一行写 mark（如“噜噜小兵留言”），且用对应账号发，留言板就显示为 name（不显示成 Muse）。
+  // 留言板“我是”下拉框里也有这两项，选了直接写正文，署名自动加；id 是专属链接 ?me= 后面的代号。
   owners: [
-    { login: "gcy2016", name: "噜噜小兵", mark: "噜噜小兵留言" },
-    { login: "xy123646", name: "噜噜大王", mark: "噜噜大王留言" },
+    { login: "gcy2016", name: "噜噜小兵", mark: "噜噜小兵留言", id: "xiaobing" },
+    { login: "xy123646", name: "噜噜大王", mark: "噜噜大王留言", id: "dawang" },
   ],
 
   // 大门锁（房屋、快递页面）。改密码：node tools/make_lock.mjs 新密码，把输出换进来
