@@ -24,7 +24,6 @@ jobs:
   gate:
     if: |
       contains(fromJSON('["xy123646","gcy2016"]'), github.event.sender.login) &&
-      startsWith(github.event.issue.title, '[留言]') &&
       contains(github.event.issue.body, '/claude') &&
       !startsWith(github.event.issue.body, 'Claude留言')
     runs-on: ubuntu-latest
