@@ -71,13 +71,18 @@
     };
   }
 
+  // 工作流（.github/workflows/claude.yml）替 Claude 发的回复，作者是 github-actions[bot]；只有本仓库的工作流能用这个身份发帖
+  function isClaudeBot(it) {
+    return it.user.login === "github-actions[bot]" && parseBody(it.body).claude;
+  }
+
   function render(issues, note) {
     var list = $("list");
     list.innerHTML = "";
     var msgs = issues.filter(function (it) {
       return !it.pull_request &&
         it.title.indexOf(cfg.titlePrefix) === 0 &&
-        memberOf(it.user.login) >= 0;
+        (memberOf(it.user.login) >= 0 || isClaudeBot(it));
     });
     if (!msgs.length) {
       $("status").textContent = note || "还没有留言，来写第一条吧。";
