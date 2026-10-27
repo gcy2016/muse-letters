@@ -20,7 +20,7 @@ concurrency:
 
 jobs:
   # 先判断是不是任务（这一步在 GitHub 机器上跑，不启动 Claude，不花额度）。两种情况算：
-  # 1. 留言内容（去掉开头的署名行，以及「回复 #编号」和引用行）第一行以 /claude 开头；
+  # 1. 留言内容（去掉开头的署名行，以及「回复 #编号」和引用行）第一行开头的「/对象」里有 /claude（MUSE.md 留言规则）；
   # 2. 第一行是「回复 #编号」，而那个编号是 Claude 发的帖子（回复 Claude 不用再写 /claude）。
   # 聊天里顺口提到 /claude、回复小miu / lulu 的帖子都不算。
   gate:
@@ -71,7 +71,9 @@ jobs:
                   pass
           while lines and (not lines[0].strip() or re.match(r"回复 #\d+|>", lines[0].strip())):
               lines.pop(0)
-          slash = bool(lines) and lines[0].lstrip().startswith("/claude")
+          # 第一行开头可以有几个「/对象」（如 /小miu /claude），其中有 /claude 就算
+          heads = re.findall(r"/\S+", re.match(r"\s*((?:/\S+\s*)*)", lines[0]).group(1)) if lines else []
+          slash = any(h.lower().startswith("/claude") for h in heads)
           print("go=" + ("true" if slash or (to_claude and lines) else "false"))
           print("who=" + re.sub(r"[\r\n]", "", who)[:20])
           PY
@@ -172,7 +174,7 @@ jobs:
           LINKS: ${{ steps.files.outputs.links }}
         run: |
           {
-            printf 'Claude留言\n署名：Claude\n\n回复 #%s（%s）：\n' "$N" "$WHO"
+            printf 'Claude留言\n署名：Claude\n\n回复 #%s（%s）：\n/%s ' "$N" "$WHO" "$WHO"
             if [ -s outputs/reply.md ]; then
               cat outputs/reply.md
             else

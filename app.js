@@ -120,8 +120,8 @@
       var reply = el("button", null, "回复");
       reply.type = "button";
       reply.onclick = function () {
-        // 只写一行“回复 #编号（谁）：”，不再引用原文：原帖就在列表里，引用反而显得乱
-        $("content").value = "回复 #" + it.number + "（" + who + "）：\n";
+        // 预填“回复 #编号（谁）：”和下一行的“/谁 ”（MUSE.md 留言规则：第一行以 /对象 开头）；不引用原文，原帖就在列表里
+        $("content").value = "回复 #" + it.number + "（" + who + "）：\n/" + (parsed.claude ? "claude" : who) + " ";
         $("content").focus();
         $("compose").scrollIntoView({ behavior: "smooth" });
       };
