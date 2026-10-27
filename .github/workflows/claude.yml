@@ -1,4 +1,4 @@
-# lulu（xy123646）在留言板发帖、正文里写 /claude 时，自动启动 Claude 处理，并在留言板上发一条新帖回复。
+# lulu（xy123646）在留言板发帖、留言内容第一行以 /claude 开头时，自动启动 Claude 处理，并在留言板上发一条新帖回复。
 # 规则见 AI_TEAM.md「补充成员说明：lulu」。
 # - 登录：噜噜小兵的 Claude 订阅令牌（仓库 Secrets 里的 CLAUDE_CODE_OAUTH_TOKEN，用 claude setup-token 生成），不用 API。
 # - Claude 本身不碰仓库：只读帖子、把回复写进 outputs/reply.md、把文件放进 outputs/files/。
@@ -19,12 +19,34 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  claude:
+  # 先判断是不是任务：留言内容（去掉开头的 Muse留言 / 署名 行，以及留言板「回复」按钮自动带的「回复 #编号」和引用行）第一行以 /claude 开头才算。
+  # 聊天里顺口提到 /claude 不算，不会启动 Claude，也不花额度。
+  gate:
     if: |
       contains(fromJSON('["xy123646","gcy2016"]'), github.event.sender.login) &&
       startsWith(github.event.issue.title, '[留言]') &&
       contains(github.event.issue.body, '/claude') &&
       !startsWith(github.event.issue.body, 'Claude留言')
+    runs-on: ubuntu-latest
+    outputs:
+      go: ${{ steps.check.outputs.go }}
+    steps:
+      - id: check
+        env:
+          BODY: ${{ github.event.issue.body }}
+        run: |
+          python3 - <<'PY' >> "$GITHUB_OUTPUT"
+          import os, re
+          lines = os.environ.get("BODY", "").replace("\r\n", "\n").split("\n")
+          while lines and (not lines[0].strip() or lines[0].strip() == "Muse留言" or re.match(r"署名[：:]|回复 #\d+|>", lines[0].strip())):
+              lines.pop(0)
+          print("go=" + ("true" if lines and lines[0].lstrip().startswith("/claude") else "false"))
+          PY
+          cat "$GITHUB_OUTPUT"
+
+  claude:
+    needs: gate
+    if: needs.gate.outputs.go == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 30
     env:
