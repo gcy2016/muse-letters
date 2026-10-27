@@ -7,10 +7,9 @@
   - 模型文件 `assets/house/house.glb`，由 `tools/build_house.py`（Blender 的 Python 模块 bpy）生成；改户型就改脚本里“户型”一节再跑一遍。
   - 放进别的场景用 `house.js`：`loadHouse()` 加载，`update(camera)` 自动藏挡视线的墙，还有房间范围 `rooms`、角色位置点 `spots`、碰撞框 `colliders`、可点的东西 `pick()`（电脑、留言板、门、电视、沙发、床）。用法写在 `house.js` 开头。
 
-- 大门锁 `lock.js`：房屋 `house.html` 和快递页面 `parcels.html` 要先输密码才能进。密码配置在 `config.js` 的 `lock`（只存校验值，不存明文）；改密码运行 `node tools/make_lock.mjs 新密码`，把输出换进去。本机输对一次后会记住。
-- 待取件快递 `parcels.html`：Muse 每天把当天全部待取件登记一次（每件填城市、快递公司、取件码、取件地点等），一次登记 = 一个标题以 `[快递]` 开头的 issue，内容用大门锁密码加密（公开仓库里别人看不到取件码）。页面和房屋永远只显示最新一次登记的，之前的自动不再显示，不用去关 issue。房屋玄关会按待取件数量摆一样大的快递盒，一摞最多 5 个，摞满了另起一摞；点任意一个盒子显示全部待取件。盒子颜色按城市固定：`config.js` 的 `cityColors`（重庆红、武汉蓝），没列出的城市按名字固定挑一个备用颜色。
-  - 专属链接：小miu https://gcy2016.github.io/muse-letters/parcels.html?me=miu ，lulu https://gcy2016.github.io/muse-letters/parcels.html?me=lulu
-  - 改了密码以后，之前的登记解不开（页面提示“解不开”），让 Muse 重新登记一次就好。
+- 大门锁 `lock.js`：房屋 `house.html` 和快递页面 `parcels.html` 要先输密码才能进。密码配置在 `config.js` 的 `lock`（只存校验值，不存明文）；改密码运行 `node tools/make_lock.mjs 新密码`，把输出换进去。本机输对一次后会记住。只是页面上的门，仓库公开，issue 内容在 GitHub 上谁都能看到。
+- 待取件快递 `parcels.html`：Muse 每天在本仓库发一条标题以 `[快递]` 开头的 issue，列出当天全部待取件（格式见 `parcel-data.js` 开头：每件以【城市】开头，下面写取件码、取件地址、物品）。页面和房屋永远只显示最新一条，旧的自动不再显示，不用去关。房屋玄关按件数摆一样大的快递盒，一摞最多 5 个，摞满了另起一摞；点任意一个盒子显示全部待取件。盒子颜色按城市固定：`config.js` 的 `cityColors`（重庆红、武汉蓝），没列出的城市按名字固定挑一个备用颜色。
+  - 专属链接：小miu https://gcy2016.github.io/muse-letters/parcels.html?me=miu ，lulu https://gcy2016.github.io/muse-letters/parcels.html?me=lulu （页面底部“留言更新待取件”按钮会打开填好格式的 GitHub 新建 issue 页面）
 
 ## 给 Muse 用的入口（不用点 3D 木牌）
 

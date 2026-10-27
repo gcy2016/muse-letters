@@ -23,7 +23,7 @@ window.BOARD_CONFIG = {
     check: "ElMbhHRQRlhuyro1a0WaHesr9nAttzZjv4uO4sAa+jE=",
   },
 
-  // 待取件快递：每件 = 一个标题以 parcelPrefix 开头的 issue（内容加密），取件后 Close 掉
+  // 待取件快递：Muse 每天发一条标题以 parcelPrefix 开头的 issue 列出当天待取件，只显示最新一条（格式见 parcel-data.js）
   parcelPrefix: "[快递]",
   // 城市 → 快递盒颜色，对应关系固定；新城市加在这里。没列出的城市按名字从备用颜色里固定挑一个
   cityColors: {

@@ -1,8 +1,16 @@
-// 待取件快递的数据：Muse 每天把当天全部待取件登记成一条（标题以 [快递] 开头的 issue，内容加密），
-// 只用最新的一条，新的一来旧的就不再显示，取完件不用去关。房屋和快递页面共用。
+// 待取件快递的数据：Muse 每天在仓库里发一条标题以 [快递] 开头的留言，列出当天全部待取件；
+// 只用最新的一条，新的一来旧的就不再显示，不用去关。房屋和快递页面共用。
+// 留言正文格式（每件以【城市】开头，城市决定快递盒颜色；一件都没有就不写【】）：
+//   Muse留言
+//   署名：小miu
+//
+//   【重庆】
+//   取件码：3-2-1024
+//   取件地址：小区东门菜鸟驿站
+//   物品：衣服
+//
 //   import { loadParcels, cityColor } from "./parcel-data.js";
-//   var snap = await loadParcels(key); // { date, who, created_at, url, parcels: [{ city, company, code, place, item, note }], bad } 或 null（还没登记过）
-import { decrypt } from "./lock.js";
+//   var snap = await loadParcels(); // { who, created_at, url, number, parcels: [{ city, code, place, item, other }] } 或 null（还没留过）
 
 var cfg = window.BOARD_CONFIG;
 // 在 <owner>.github.io/<repo>/ 上打开时按网址识别仓库（和留言板一样）
@@ -28,9 +36,32 @@ export function cityColor(city) {
   return SPARE[h % SPARE.length];
 }
 
+// 按上面的格式拆出每一件；认不出的行放进 other，照样显示出来，免得漏信息
+export function parseParcels(body) {
+  var parcels = [], cur = null;
+  String(body || "").replace(/\r\n/g, "\n").split("\n").forEach(function (raw) {
+    var line = raw.trim(), mm;
+    if (!line || line === "Muse留言" || /^署名[：:]/.test(line)) return;
+    if ((mm = line.match(/^[【\[]\s*([^】\]]*?)\s*[】\]]\s*(.*)$/))) {
+      parcels.push(cur = { city: mm[1], code: "", place: "", item: "", other: mm[2] });
+    } else if (!cur) {
+      return; // 第一个【城市】之前的话（比如“今天没有待取件”）不算快递
+    } else if ((mm = line.match(/^取件码\s*[：:]\s*(.*)$/))) {
+      cur.code = mm[1];
+    } else if ((mm = line.match(/^(?:取件)?(?:地址|地点)\s*[：:]\s*(.*)$/))) {
+      cur.place = mm[1];
+    } else if ((mm = line.match(/^物品\s*[：:]\s*(.*)$/))) {
+      cur.item = mm[1];
+    } else {
+      cur.other = cur.other ? cur.other + "\n" + line : line;
+    }
+  });
+  return parcels;
+}
+
 var CACHE_KEY = "muse-parcels-cache:" + owner + "/" + repo;
 
-// 找最新的一条 [快递]（issue 默认按创建时间从新到旧，一般第一页就有；最多翻 3 页）。ETag 和缓存的思路同留言板
+// 找最新的一条 [快递]（issue 按创建时间从新到旧，一般第一页就有；最多翻 3 页）。ETag 和缓存的思路同留言板
 async function fetchLatest() {
   for (var page = 1; page <= 3; page++) {
     var r = await fetch("https://api.github.com/repos/" + owner + "/" + repo + "/issues?state=open&sort=created&direction=desc&per_page=100&page=" + page,
@@ -51,19 +82,16 @@ async function fetchLatest() {
   return null;
 }
 
-export function cachedIssue() {
-  try { return JSON.parse(localStorage.getItem(CACHE_KEY) || "null"); } catch (e) { return null; }
-}
-
-// 解密：正文里 ENC1. 开头的那一行；解不开（改过密码）时 bad 为真
-export async function decryptIssue(key, it) {
+export function toSnap(it) {
   if (!it) return null;
-  var line = String(it.body || "").split(/\r?\n/).filter(function (l) { return /^ENC1\./.test(l.trim()); })[0];
-  var data = line ? await decrypt(key, line) : null;
-  var snap = data && Array.isArray(data.parcels) ? data : { parcels: [], bad: true };
-  return Object.assign({}, snap, { number: it.number, url: it.url, created_at: it.created_at, who: snap.who || memberName(it.login) });
+  var sig = String(it.body || "").match(/^\s*署名[：:]\s*(.+)$/m);
+  return { number: it.number, url: it.url, created_at: it.created_at, who: sig ? sig[1].trim() : memberName(it.login), parcels: parseParcels(it.body) };
 }
 
-export async function loadParcels(key) {
-  return decryptIssue(key, await fetchLatest());
+export function cachedSnap() {
+  try { return toSnap(JSON.parse(localStorage.getItem(CACHE_KEY) || "null")); } catch (e) { return null; }
+}
+
+export async function loadParcels() {
+  return toSnap(await fetchLatest());
 }

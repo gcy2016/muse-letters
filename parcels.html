@@ -6,49 +6,21 @@
   <title>待取件快递</title>
   <link rel="stylesheet" href="style.css">
   <style>
-    input[type=text] {
-      display: block; width: 100%; margin-top: 6px; padding: 8px 10px; font: inherit; font-weight: normal;
-      color: var(--text); background: var(--bg); border: 1px solid var(--border); border-radius: 8px;
-    }
-    [hidden] { display: none !important; }
-    .row { display: flex; gap: 12px; }
-    .row > label { flex: 1; min-width: 0; }
-    fieldset.item { border: 1px solid var(--border); border-radius: 12px; padding: 12px 14px 0; margin: 0 0 12px; }
-    fieldset.item legend { font-weight: 700; padding: 0 6px; }
-    fieldset.item .remove { float: right; margin: -4px 0 8px; }
     .parcel { border: 1px solid var(--border); border-left: 8px solid var(--c); border-radius: 12px; padding: 12px 14px; margin-bottom: 12px; background: var(--card); }
     .parcel .city { display: inline-block; padding: 0 10px; border-radius: 10px; background: var(--c); color: #fff; font-weight: 700; }
     .parcel .code { font-size: 22px; font-weight: 700; letter-spacing: 1px; }
     .parcel dl { margin: 8px 0 0; display: grid; grid-template-columns: auto 1fr; gap: 2px 12px; }
     .parcel dt { color: var(--muted); }
     .parcel dd { margin: 0; word-break: break-word; white-space: pre-wrap; }
-    .buttons { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
-    .list-only #compose { display: none; }
-    .list-only header { display: none; }
+    .list-only header, .list-only #post { display: none; }
   </style>
 </head>
 <body>
   <main>
     <header>
       <h1>待取件快递</h1>
-      <p class="sub">每天登记一次当天全部待取件，新的一登记，旧的就不再显示</p>
+      <p class="sub">显示 Muse 最新一次留言的待取件，新的一留言，旧的就不再显示</p>
     </header>
-
-    <section class="card" id="compose">
-      <h2>登记今天的待取件</h2>
-      <form id="form">
-        <label>我是
-          <select id="author" required></select>
-        </label>
-        <div id="items"></div>
-        <div class="buttons">
-          <button type="button" id="add" class="ghost">＋ 再加一件</button>
-        </div>
-        <p class="hint">把<b>今天所有还没取的快递</b>都填上（一件一栏；今天一件都没有就把栏全部删掉）。点“登记”后会打开 GitHub 的新建 issue 页面，内容已经加密填好，在那个页面点 <b>Create</b> 就好了（需要先登录 GitHub）。登记后会替换掉之前的，取完件不用去关。</p>
-        <button type="submit" id="send">登记</button>
-        <p id="send-status" class="status"></p>
-      </form>
-    </section>
 
     <section>
       <div class="list-head">
@@ -57,42 +29,10 @@
       </div>
       <p id="status" class="status">加载中……</p>
       <ol id="list" class="list"></ol>
+      <!-- 给 Muse：打开 GitHub 新建 issue 页面，标题和格式已填好，照着改内容再点 Create -->
+      <p><button type="button" id="post" class="ghost">留言更新待取件</button></p>
     </section>
   </main>
-
-  <template id="item-tpl">
-    <fieldset class="item">
-      <legend></legend>
-      <button type="button" class="ghost remove">删掉这件</button>
-      <div class="row" style="clear: both">
-        <label>城市
-          <select name="city" required></select>
-        </label>
-        <label class="city-other" hidden>其他城市
-          <input type="text" name="cityOther" placeholder="城市名，如 成都">
-        </label>
-      </div>
-      <div class="row">
-        <label>快递公司
-          <input type="text" name="company" placeholder="如 顺丰、菜鸟驿站">
-        </label>
-        <label>取件码
-          <input type="text" name="code" placeholder="如 3-2-1024">
-        </label>
-      </div>
-      <label>取件地点
-        <input type="text" name="place" placeholder="如 小区东门菜鸟驿站">
-      </label>
-      <div class="row">
-        <label>物品（可不填）
-          <input type="text" name="item" placeholder="如 衣服、书">
-        </label>
-        <label>备注（可不填）
-          <input type="text" name="note" placeholder="如 到期时间、单号">
-        </label>
-      </div>
-    </fieldset>
-  </template>
 
   <script src="config.js"></script>
   <script type="module" src="parcels-page.js"></script>

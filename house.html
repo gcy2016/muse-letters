@@ -66,16 +66,16 @@
     var hint = document.getElementById("hint");
     // 大门锁：输密码的同时模型在后台下载
     var loading = loadHouse(null, function (p) { hint.textContent = "加载中… " + Math.round(p * 100) + "%"; });
-    var key = await unlock();
+    await unlock();
     var house = await loading;
     scene.add(house.root);
 
-    // 待取件快递（Muse 最新一次登记的）：玄关门口摆对应个数的快递盒（颜色按城市），点任意一个显示全部待取件
+    // 待取件快递（Muse 最新一次 [快递] 留言里的）：玄关门口摆对应个数的快递盒（颜色按城市），点任意一个显示全部待取件
     var parcelGroup = null;
     function refreshParcels() {
-      return loadParcels(key).then(function (snap) {
+      return loadParcels().then(function (snap) {
         if (parcelGroup) scene.remove(parcelGroup);
-        parcelGroup = makeParcelBoxes(snap && !snap.bad ? snap.parcels : []);
+        parcelGroup = makeParcelBoxes(snap ? snap.parcels : []);
         scene.add(parcelGroup);
       }).catch(function (e) { console.warn("快递加载失败：", e.message); });
     }
