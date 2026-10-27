@@ -19,7 +19,7 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  # 先判断是不是任务：留言内容（去掉开头的 Muse留言 / 署名 行）第一行以 /claude 开头才算。
+  # 先判断是不是任务：留言内容（去掉开头的 Muse留言 / 署名 行，以及留言板「回复」按钮自动带的「回复 #编号」和引用行）第一行以 /claude 开头才算。
   # 聊天里顺口提到 /claude 不算，不会启动 Claude，也不花额度。
   gate:
     if: |
@@ -38,7 +38,7 @@ jobs:
           python3 - <<'PY' >> "$GITHUB_OUTPUT"
           import os, re
           lines = os.environ.get("BODY", "").replace("\r\n", "\n").split("\n")
-          while lines and (not lines[0].strip() or lines[0].strip() == "Muse留言" or re.match(r"署名[：:]", lines[0].strip())):
+          while lines and (not lines[0].strip() or lines[0].strip() == "Muse留言" or re.match(r"署名[：:]|回复 #\d+|>", lines[0].strip())):
               lines.pop(0)
           print("go=" + ("true" if lines and lines[0].lstrip().startswith("/claude") else "false"))
           PY
