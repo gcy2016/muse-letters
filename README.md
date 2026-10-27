@@ -6,6 +6,7 @@
 - 房屋模型 `house.html`：一整套房子（客厅、厨房餐厅、书房、卧室、玄关）。客厅是方案 B（grab3d Living Room）原样，其他房间的家具来自方案 C（Cozy Home Interiors），两者都是 CC0，原始文件和许可记录在 `assets/house/source/`。
   - 模型文件 `assets/house/house.glb`，由 `tools/build_house.py`（Blender 的 Python 模块 bpy）生成；改户型就改脚本里“户型”一节再跑一遍。
   - 放进别的场景用 `house.js`：`loadHouse()` 加载，`update(camera)` 自动藏挡视线的墙，还有房间范围 `rooms`、角色位置点 `spots`、碰撞框 `colliders`、可点的东西 `pick()`（电脑、留言板、门、电视、沙发、床）。用法写在 `house.js` 开头。
+  - 房间里的小miu 和 lulu 是带骨骼的精细模型（`assets/miu-avatar/miu.glb`、`assets/lulu-avatar/lulu.glb`，由混元生成的模型修好、简化、绑骨、压缩而来，流程写在 `tools/fix_avatar.py` 开头）。动作由 `pet.js` 用代码实时摆骨头：走、跳、眨眼、摇尾巴、转头、点头、转身、伸懒腰，步数次数随便定，默认自由活动。页面上点“让它们动”可以指挥，也能自己编一串（`走3步 跳1下 眨眼2次`）；给 Muse 用的网址：`house.html?do=miu:走2步 跳2下;lulu:眨眼2次`，加 `&free=0` 关掉自由活动。
 
 - 大门锁 `lock.js`：房屋 `house.html` 和快递页面 `parcels.html` 要先输密码才能进。密码配置在 `config.js` 的 `lock`（只存校验值，不存明文）；改密码运行 `node tools/make_lock.mjs 新密码`，把输出换进去。本机输对一次后会记住。开锁的同时也就有了解开快递留言的密钥。
 - 待取件快递 `parcels.html`：Muse 每天把当天全部待取件按格式写好（每件以【城市】开头，下面写取件码、取件地址、物品；格式见 `parcel-data.js` 开头），粘贴进页面的输入框点“加密并留言”，页面用大门锁密码加密后打开填好的 GitHub 新建 issue 页面（标题以 `[快递]` 开头），点 Create 发出。GitHub 上只有密文，开锁后页面和房屋才解得开。永远只显示最新一条，旧的自动不再显示，不用去关。房屋玄关按件数摆一样大的快递盒，一摞最多 5 个，摞满了另起一摞；点任意一个盒子显示全部待取件。盒子颜色按城市固定：`config.js` 的 `cityColors`（重庆红、武汉蓝），没列出的城市按名字固定挑一个备用颜色。

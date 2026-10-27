@@ -25,6 +25,18 @@
     #panel iframe { display: block; width: 100%; height: 100%; border: 0; }
     #panel .msg { padding: 60px 28px; color: #5a4636; font-size: 16px; line-height: 1.8; }
     #close { position: absolute; right: 10px; top: 10px; z-index: 1; width: 36px; height: 36px; border-radius: 50%; border: none; background: #e0607e; color: #fff; font-size: 20px; cursor: pointer; }
+    #pets {
+      position: fixed; left: 12px; bottom: 52px; display: none; width: 300px; max-width: calc(100% - 24px); box-sizing: border-box;
+      background: rgba(255, 255, 255, 0.94); border-radius: 14px; padding: 10px; box-shadow: 0 4px 16px rgba(0, 0, 0, .15); color: #5a4636; font-size: 14px;
+    }
+    #pets.open { display: block; }
+    #pets .who { display: flex; gap: 6px; margin-bottom: 8px; }
+    #pets .who button { flex: 1; }
+    #pets .acts { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; }
+    #pets button { padding: 6px 11px; border: none; border-radius: 16px; background: #f2e8dd; color: #5a4636; font-size: 14px; cursor: pointer; }
+    #pets button.on { background: #e0607e; color: #fff; }
+    #pets .own { display: flex; gap: 6px; }
+    #pets input { flex: 1; min-width: 0; padding: 6px 10px; border: 1px solid #e3d6c8; border-radius: 16px; font-size: 14px; }
     @media (max-width: 600px) { #panel .box { inset: 10px; } #bar button { padding: 6px 10px; font-size: 13px; } }
   </style>
   <script type="importmap">
@@ -35,6 +47,11 @@
   <canvas id="scene"></canvas>
   <div id="bar"></div>
   <div id="hint">加载中…</div>
+  <div id="pets">
+    <div class="who"></div>
+    <div class="acts"></div>
+    <div class="own"><input id="prog" placeholder="自己编：走3步 跳1下 眨眼2次"><button id="run" type="button">做</button></div>
+  </div>
   <div id="panel"><div class="box"><button id="close" type="button">×</button><div id="content"></div></div></div>
   <script src="config.js"></script>
   <script type="module">
@@ -42,8 +59,7 @@
     import * as THREE from "three";
     import { OrbitControls } from "./lib/OrbitControls.js";
     import { loadHouse, addHouseLights } from "./house.js";
-    import { createMiu } from "./miu.js";
-    import { createLulu } from "./lulu.js";
+    import { loadPet } from "./pet.js";
     import { unlock } from "./lock.js";
     import { loadParcels } from "./parcel-data.js";
     import { makeParcelBoxes } from "./parcel-boxes.js";
@@ -66,8 +82,25 @@
     var hint = document.getElementById("hint");
     // 大门锁：输密码的同时模型在后台下载
     var loading = loadHouse(null, function (p) { hint.textContent = "加载中… " + Math.round(p * 100) + "%"; });
+    // 两只角色（带骨骼的精细模型，会走会跳会眨眼）也同时下载；走路时只能在自己房间里、不撞家具和墙
+    var house = null;
+    function canStandIn(room) {
+      return function (x, z) {
+        var r = house.rooms[room], m = 0.25;
+        if (x < r.x0 + m || x > r.x1 - m || z < r.z0 + m || z > r.z1 - m) return false;
+        return !house.colliders.some(function (c) { return x > c.x0 - 0.15 && x < c.x1 + 0.15 && z > c.z0 - 0.15 && z < c.z1 + 0.15; });
+      };
+    }
+    var PETS = [{ id: "miu", label: "小miu", spot: "living" }, { id: "lulu", label: "lulu", spot: "tv" }];
+    var petsLoading = Promise.all(PETS.map(function (p) {
+      var room = null;
+      return loadPet(p.id, { height: 0.72, canStand: function (x, z) { return canStandIn(room)(x, z); } }).then(function (pet) {
+        pet.setRoom = function (id) { room = id; };
+        return pet;
+      });
+    }));
     var key = await unlock();
-    var house = await loading;
+    house = await loading;
     scene.add(house.root);
 
     // 待取件快递（Muse 最新一次 [快递] 留言里的）：玄关门口摆对应个数的快递盒（颜色按城市），点任意一个显示全部待取件
@@ -81,20 +114,19 @@
     }
     refreshParcels();
 
-    // 两个角色先放进来比比大小（角色模型高 1.6，缩到约 0.7 米）
-    var AVATAR_SCALE = 0.45;
+    // 两个角色放到各自的位置（高约 0.7 米）。默认自由活动：闲着时自己隔一会儿走走、跳跳、摇摇尾巴
+    var pets = await petsLoading;
     var cast = [];
-    function putAvatar(avatar, spotId) {
-      var s = house.spots[spotId];
-      avatar.scale.setScalar(AVATAR_SCALE);
-      avatar.position.copy(s.position);
-      avatar.rotation.y = s.rotationY;
-      avatar.userData.room = s.room;
-      scene.add(avatar);
-      cast.push(avatar);
-    }
-    putAvatar(createMiu(), "living");
-    putAvatar(createLulu(), "tv");
+    pets.forEach(function (pet, i) {
+      var s = house.spots[PETS[i].spot];
+      pet.root.position.copy(s.position);
+      pet.root.rotation.y = s.rotationY;
+      pet.root.userData.room = s.room;
+      pet.setRoom(s.room);
+      pet.setFree(params.get("free") !== "0");
+      scene.add(pet.root);
+      cast.push(pet.root);
+    });
 
     // 视角：全屋或某个房间。az 水平角（0 正前方），el 仰角
     var fixed = params.has("az");
@@ -202,15 +234,53 @@
       canvas.style.cursor = h && (h.id === "board" || h.id === "parcel" || h.id === "door" || NOTES[h.id]) ? "pointer" : "";
     });
 
+    // 动作面板：选一只，点按钮或者自己编一串（“走3步 跳1下 眨眼2次”）
+    // 给 Muse 用的网址：house.html?do=miu:走2步 跳2下;lulu:眨眼2次 打开就照着做；?free=0 关掉自由活动
+    var petsBox = document.getElementById("pets");
+    var who = 0;
+    var whoBox = petsBox.querySelector(".who"), actBox = petsBox.querySelector(".acts");
+    var whoBtns = PETS.map(function (p, i) {
+      var b = document.createElement("button");
+      b.type = "button"; b.textContent = p.label;
+      b.onclick = function () { who = i; whoBtns.forEach(function (x, j) { x.classList.toggle("on", j === i); }); freeBtn.classList.toggle("on", pets[who].free); };
+      whoBox.appendChild(b);
+      return b;
+    });
+    function act(text, prog) {
+      var b = document.createElement("button");
+      b.type = "button"; b.textContent = text;
+      b.onclick = function () { pets[who].stop(); pets[who].play(prog); };
+      actBox.appendChild(b);
+      return b;
+    }
+    act("走两步", "走2步"); act("跳两下", "跳2下"); act("眨眨眼", "眨眼2次"); act("摇尾巴", "摇尾巴4下");
+    act("转头看看", "转头"); act("点点头", "点头2下"); act("伸懒腰", "伸懒腰"); act("转个身", "转身");
+    act("来一套", "走3步 转头 跳2下 摇尾巴4下 眨眼2次");
+    var freeBtn = document.createElement("button");
+    freeBtn.type = "button"; freeBtn.textContent = "自由活动";
+    freeBtn.onclick = function () { pets[who].setFree(!pets[who].free); freeBtn.classList.toggle("on", pets[who].free); };
+    actBox.appendChild(freeBtn);
+    whoBtns[0].onclick();
+    var progInput = document.getElementById("prog");
+    function runOwn() { if (progInput.value.trim()) { pets[who].stop(); pets[who].play(progInput.value); } }
+    document.getElementById("run").onclick = runOwn;
+    progInput.addEventListener("keydown", function (e) { if (e.key === "Enter") runOwn(); });
+    button("pets", "让它们动", function () { petsBox.classList.toggle("open"); buttons.pets.classList.toggle("on", petsBox.classList.contains("open")); });
+    (params.get("do") || "").split(";").forEach(function (part) {
+      var m = part.match(/^\s*(\w+)\s*[:：]\s*(.+)$/);
+      var i = m ? PETS.findIndex(function (p) { return p.id === m[1]; }) : -1;
+      if (i >= 0) pets[i].play(m[2]);
+    });
+
     var clock = new THREE.Clock();
     renderer.setAnimationLoop(function () {
-      var t = clock.getElapsedTime();
+      var dt = clock.getDelta();
       if (goal) {
         camera.position.lerp(goal.pos, 0.12);
         controls.target.lerp(goal.target, 0.12);
         if (camera.position.distanceTo(goal.pos) < 0.02) goal = null;
       }
-      if (!fixed) cast.forEach(function (a) { a.userData.animate(t); });
+      if (!fixed) pets.forEach(function (p) { p.update(dt); });
       controls.update();
       house.update(camera);
       if (parcelGroup) parcelGroup.visible = !house.view.room || house.view.room === "entry";
@@ -220,6 +290,7 @@
     window.HOUSE = house;
     window.CAMERA = camera;
     window.HOUSE_SCENE = scene;
+    window.PETS = pets; // 调试用：PETS[0].play("走2步")
     window.READY = true;
   </script>
 </body>
