@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
-  <title>房屋模型</title>
+  <title>噜噜之家</title>
   <style>
     html, body { margin: 0; height: 100%; overflow: hidden; background: #f4efe8; font-family: -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif; }
     #scene { display: block; width: 100%; height: 100%; touch-action: none; }
@@ -132,13 +132,16 @@
       button("room:" + id, house.rooms[id].label, function () { showRoom(id); });
     });
     bar.appendChild(Object.assign(document.createElement("span"), { className: "gap" }));
+    // 出门：回到噜噜岛，镜头停在门口
+    function goOut() { location.href = "index.html?from=house"; }
+    button("out", "出门 🏝", goOut);
     var wallBtn = button("walls", "", function () {
       house.setView({ walls: house.view.walls === "low" ? "full" : "low" });
       wallBtn.textContent = house.view.walls === "low" ? "内墙：矮" : "内墙：全高";
     });
     house.setView({ walls: params.get("walls") === "full" ? "full" : "low" });
     wallBtn.textContent = house.view.walls === "low" ? "内墙：矮" : "内墙：全高";
-    hint.textContent = "拖动旋转 · 滚轮/双指缩放 · 点电脑、留言板、门、快递盒试试";
+    hint.textContent = "拖动旋转 · 滚轮/双指缩放 · 点电脑、留言板、快递盒试试 · 点门出门";
 
     function resize() {
       renderer.setSize(window.innerWidth, window.innerHeight, false);
@@ -159,7 +162,6 @@
     };
     var NOTES = {
       computer: "<div class='msg'><b>电脑</b><br>以后在这里放入口：旅行相册、小游戏等（等 PRD 定）。</div>",
-      door: "<div class='msg'><b>入户门</b><br>以后可以从这里出门，去小岛或别的地方（等 PRD 定）。</div>",
       tv: "<div class='msg'><b>电视</b><br>以后可以放视频或照片（等 PRD 定）。</div>",
     };
     var raycaster = new THREE.Raycaster(), pointer = new THREE.Vector2(), down = null;
@@ -189,14 +191,15 @@
       if (moved > 6) return;
       var h = hit(e);
       if (!h) return;
-      if (h.id === "board") open("<iframe src='board.html'></iframe>");
+      if (h.id === "door") goOut();
+      else if (h.id === "board") open("<iframe src='board.html'></iframe>");
       else if (h.id === "parcel") open("<iframe src='parcels.html?view=list'></iframe>");
       else if (NOTES[h.id]) open(NOTES[h.id]);
     });
     canvas.addEventListener("pointermove", function (e) {
       if (e.pointerType !== "mouse") return;
       var h = hit(e);
-      canvas.style.cursor = h && (h.id === "board" || h.id === "parcel" || NOTES[h.id]) ? "pointer" : "";
+      canvas.style.cursor = h && (h.id === "board" || h.id === "parcel" || h.id === "door" || NOTES[h.id]) ? "pointer" : "";
     });
 
     var clock = new THREE.Clock();
@@ -213,7 +216,7 @@
       if (parcelGroup) parcelGroup.visible = !house.view.room || house.view.room === "entry";
       renderer.render(scene, camera);
     });
-    document.title = "房屋模型";
+    document.title = "噜噜之家";
     window.HOUSE = house;
     window.CAMERA = camera;
     window.HOUSE_SCENE = scene;

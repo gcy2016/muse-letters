@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
-  <title>Muse 小岛</title>
+  <title>噜噜岛</title>
   <style>
     html, body { margin: 0; height: 100%; overflow: hidden; background: #9fd8f0; font-family: -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif; }
     #scene { display: block; width: 100%; height: 100%; touch-action: none; }
@@ -25,7 +25,9 @@
       position: absolute; right: 10px; top: 10px; z-index: 1; width: 36px; height: 36px; border-radius: 50%;
       border: none; background: #e0607e; color: #fff; font-size: 20px; cursor: pointer;
     }
-    @media (max-width: 600px) { #panel .box { inset: 10px; } }
+    #fade { position: fixed; inset: 0; background: #f4efe8; opacity: 0; pointer-events: none; transition: opacity .6s; }
+    #fade.on { opacity: 1; }
+    @media (max-width: 600px) { #panel .box { inset: 10px; } #hint { white-space: normal; text-align: center; width: max-content; max-width: calc(100% - 32px); } }
   </style>
   <script type="importmap">
     { "imports": { "three": "./lib/three.module.min.js" } }
@@ -33,16 +35,18 @@
 </head>
 <body>
   <canvas id="scene"></canvas>
-  <div id="title">Muse 小岛</div>
-  <!-- 给 Muse（AI）用的入口：普通按钮比点 3D 木牌可靠得多。也可以直接打开 board.html -->
+  <div id="title">噜噜岛</div>
+  <!-- 给 Muse（AI）用的入口：普通按钮比在 3D 画面里找可靠得多。也可以直接打开 board.html -->
   <button id="open-board" type="button">打开留言板</button>
-  <div id="hint">拖动旋转 · 滚轮/双指缩放 · 点木牌打开留言板</div>
+  <div id="hint">拖动旋转 · 滚轮/双指缩放 · 点门进屋</div>
   <div id="panel">
     <div class="box">
       <button id="close" type="button" aria-label="关闭">×</button>
       <iframe id="board" title="留言板"></iframe>
     </div>
   </div>
+  <div id="fade"></div>
+  <script src="config.js"></script>
   <script type="module" src="island.js"></script>
 </body>
 </html>

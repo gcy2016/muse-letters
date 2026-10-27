@@ -10,6 +10,9 @@
 //   house.spots.sofa                   // { id, label, room, position, rotationY }：角色站在这里、朝这个方向
 //   house.colliders                    // [{ x0, z0, x1, z1, kind, name }]：墙和家具在地面上的占地，以后操控角色走路时挡路用
 //   house.pick(raycaster)              // 点到了什么：{ id: "computer" | "board" | "door" | "tv" | "sofa" | "bed", object, point } 或 null
+//   house.setView({ exterior: true })  // 从外面看：盖上屋顶、墙全部立起来（放进小岛等外部场景时用）；false 回到剖开看
+//   house.setDoor(true)                // 入户门开 / 关（会慢慢转过去）；house.doorOpen 是当前目标状态
+//   house.doorPosition                 // 入户门外侧台阶上的一点（房子坐标），镜头对准门用
 import * as THREE from "three";
 import { GLTFLoader } from "./lib/GLTFLoader.js";
 import { RoomEnvironment } from "./lib/RoomEnvironment.js";
@@ -29,7 +32,7 @@ export function loadHouse(url, onProgress) {
 
 function makeHouse(root) {
   root.name = "house";
-  var rooms = {}, spots = {}, walls = [], items = [], floors = [], interactables = {}, base = null;
+  var rooms = {}, spots = {}, walls = [], items = [], floors = [], interactables = {}, bases = [], roof = null;
   var wallById = {};
 
   root.traverse(function (o) {
@@ -53,7 +56,9 @@ function makeHouse(root) {
     } else if (d.kind === "floor") {
       floors.push({ node: o, room: d.room });
     } else if (d.kind === "base") {
-      base = o;
+      bases.push(o);
+    } else if (d.kind === "roof") {
+      roof = o;
     }
   });
 
@@ -68,11 +73,32 @@ function makeHouse(root) {
     });
   }
 
+  // 入户门：门扇（名字以 door 开头的几个零件）挂到合页上，能开能关。门扇宽约 0.83，合页在门的左边（从外面看）
+  var doorHinge = null, doorAngle = 0, doorPosition = new THREE.Vector3();
+  if (interactables.door) {
+    root.updateMatrixWorld(true);
+    var leaves = [];
+    interactables.door.traverse(function (o) { if (/^door/.test(o.name) && !/^door/.test(o.parent.name)) leaves.push(o); });
+    doorHinge = new THREE.Group();
+    doorHinge.name = "door_hinge";
+    doorHinge.position.set(-0.415, 0, 0);
+    interactables.door.add(doorHinge);
+    doorHinge.updateMatrixWorld(true);
+    leaves.forEach(function (o) { doorHinge.attach(o); });
+    interactables.door.getWorldPosition(doorPosition);
+    doorPosition.z += 0.6; // 门外台阶上
+  }
+  var view = { room: null, walls: "low", exterior: false };
+  var doorOpen = false;
+  function setDoor(open) { api.doorOpen = doorOpen = !!open; }
+
   // 只看一个房间时，房间底下单独垫一块底座（全屋底座先藏起来）
+  var baseMat = new THREE.MeshStandardMaterial({ color: 0xc48552, roughness: 0.9 });
+  bases[0] && bases[0].traverse(function (o) { if (o.isMesh) baseMat = o.material; });
   var roomBases = {};
   Object.keys(rooms).forEach(function (id) {
     var r = rooms[id];
-    var m = new THREE.Mesh(new THREE.BoxGeometry(r.x1 - r.x0, 0.2, r.z1 - r.z0), base ? base.material : new THREE.MeshStandardMaterial({ color: 0xc48552 }));
+    var m = new THREE.Mesh(new THREE.BoxGeometry(r.x1 - r.x0, 0.2, r.z1 - r.z0), baseMat);
     m.position.set((r.x0 + r.x1) / 2, -0.145, (r.z0 + r.z1) / 2);
     m.receiveShadow = true;
     m.visible = false;
@@ -94,7 +120,6 @@ function makeHouse(root) {
     w.pieces.forEach(function (p) { if (p.part === "full" || p.part === "below" || p.part === "fixed" && p.node.isMesh) addCollider(p.node, "wall"); });
   });
 
-  var view = { room: null, walls: "low" };
   var dir = new THREE.Vector3();
   var center = new THREE.Vector3();
   var inv = new THREE.Matrix4();
@@ -102,10 +127,18 @@ function makeHouse(root) {
   function setView(opts) {
     if ("room" in opts) view.room = opts.room && rooms[opts.room] ? opts.room : null;
     if (opts.walls) view.walls = opts.walls;
+    if ("exterior" in opts) view.exterior = !!opts.exterior;
   }
 
   // 按相机方向决定每面墙：全高 / 变矮（矮墙模式下的内墙）/ 只留墙脚（挡住视线的墙）/ 不显示（别的房间）
   function update(camera) {
+    // 门慢慢转到目标角度（往屋里开）
+    if (doorHinge) {
+      doorAngle += ((doorOpen ? 1.65 : 0) - doorAngle) * 0.12;
+      doorHinge.rotation.y = doorAngle;
+    }
+    if (roof) roof.visible = view.exterior;
+    if (view.exterior) { showAll(); return; }
     var R = view.room;
     inv.copy(root.matrixWorld).invert();
     dir.copy(camera.position).applyMatrix4(inv); // 相机在房子坐标里的位置
@@ -138,8 +171,23 @@ function makeHouse(root) {
       it.node.visible = vis;
     });
     floors.forEach(function (f) { f.node.visible = !R || f.room === R; });
-    if (base) base.visible = !R;
+    bases.forEach(function (b) { b.visible = !R; });
     Object.keys(roomBases).forEach(function (id) { roomBases[id].visible = id === R; });
+  }
+
+  // 从外面看：所有墙全高、门窗都在，家具都留着（从门口和窗户能看到一点）
+  function showAll() {
+    walls.forEach(function (w) {
+      w.node.visible = true; w.cut = false; w.shown = true;
+      w.pieces.forEach(function (p) {
+        if (p.part === "full" || p.part === "below") p.node.scale.y = 1;
+        else if (p.part === "above" || p.part === "window" || p.part === "frame") p.node.visible = true;
+      });
+    });
+    items.forEach(function (it) { it.node.visible = true; });
+    floors.forEach(function (f) { f.node.visible = true; });
+    bases.forEach(function (b) { b.visible = true; });
+    Object.keys(roomBases).forEach(function (id) { roomBases[id].visible = false; });
   }
 
   function isShown(o) {
@@ -167,8 +215,9 @@ function makeHouse(root) {
   }
 
   var bounds = new THREE.Box3().setFromObject(root);
-  return { root: root, rooms: rooms, spots: spots, colliders: colliders, interactables: interactables, walls: walls, bounds: bounds,
-    view: view, setView: setView, update: update, pick: pick, roomAt: roomAt };
+  var api = { root: root, rooms: rooms, spots: spots, colliders: colliders, interactables: interactables, walls: walls, bounds: bounds,
+    view: view, setView: setView, update: update, pick: pick, roomAt: roomAt, setDoor: setDoor, doorOpen: false, doorPosition: doorPosition };
+  return api;
 }
 
 function screenTexture() {

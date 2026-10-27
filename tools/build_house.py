@@ -206,6 +206,7 @@ mat("floor_wood", "#d39c62", 0.8); mat("floor_wood_dark", "#bb8350", 0.8)
 mat("cork", "#cfa36d", 1.0)
 mat("note_pink", "#f6b3c4"); mat("note_blue", "#a9c8f2"); mat("note_yellow", "#f8e08a"); mat("note_white", "#fbf8f1")
 mat("miu_blue", "#8fb4f2"); mat("lulu_pink", "#f3a6bc")
+mat("roof", "#e5836f", 0.85); mat("roof_edge", "#c96a58", 0.85); mat("chimney", "#f1e6d6", 0.9)
 
 # ---------- 3. 户型 ----------
 # 房间：x、y 是墙中线围成的范围（米）。客厅就是方案 B 原来的 4×4 房间，放在左后角。
@@ -481,6 +482,43 @@ place("dresser", 1.26 + 0.26, -2.6, 90, room=B_)
 place("bedroom-rug", 2.6, -2.45, room=B_, solid=False)
 place("wall-art-frames", 2.45, -0.12 - 0.03, room=B_, z=1.45, solid=False, wallmount="mid_kitchen_bedroom")
 place("slippers", 3.45, -1.6, -90, room=B_, solid=False, fid="slippers_bed")
+
+# ---------- 6b. 屋顶（从外面看时才显示；进屋后 house.js 会藏起来，变成剖开看） ----------
+def prism(name, top, depth, mats, parent, axis_down=True):
+    """四边形 top（4 个点，逆时针）往下挤出 depth 厚的板"""
+    bot = [(x, y, z - depth) for x, y, z in top]
+    vs = list(top) + bot
+    fs = [(0, 1, 2, 3), (7, 6, 5, 4), (0, 4, 5, 1), (1, 5, 6, 2), (2, 6, 7, 3), (3, 7, 4, 0)]
+    me = bpy.data.meshes.new(name); me.from_pydata(vs, [], fs); me.update()
+    for m in mats: me.materials.append(m)
+    for i, p in enumerate(me.polygons): p.material_index = 0 if i == 0 else min(1, len(mats) - 1)
+    return link(bpy.data.objects.new(name, me), parent)
+def tri_wall(name, x, inward, pts, T, m, parent):
+    """山墙的三角形，pts 是外表面上的 3 个点 (y, z)，往屋里挤出 T"""
+    vs = [(x, y, z) for y, z in pts] + [(x + inward * T, y, z) for y, z in pts]
+    fs = [(0, 1, 2), (5, 4, 3), (0, 3, 4, 1), (1, 4, 5, 2), (2, 5, 3, 0)]
+    me = bpy.data.meshes.new(name); me.from_pydata(vs, [], fs); me.update(); me.materials.append(m)
+    return link(bpy.data.objects.new(name, me), parent)
+ROOF = empty("roof", parent=ROOT, kind="roof")
+PITCH, OVER, ROOF_T = math.radians(28), 0.35, 0.14
+YM = (Y0 + Y1) / 2
+ridge_z = H + (Y1 - Y0) / 2 * math.tan(PITCH)
+eave_z = H - OVER * math.tan(PITCH)
+rx0, rx1 = X0 - OVER, X1 + OVER
+for side, ye in (("front", Y0 - OVER), ("back", Y1 + OVER)):
+    top = [(rx0, ye, eave_z), (rx1, ye, eave_z), (rx1, YM, ridge_z), (rx0, YM, ridge_z)]
+    if side == "back": top = [top[1], top[0], top[3], top[2]]
+    prism("roof_" + side, [(x, y, z + ROOF_T) for x, y, z in top], ROOF_T, [MATS["roof"], MATS["roof_edge"]], ROOF)
+box("roof_ridge", (rx1 - rx0 + 0.04, 0.22, 0.12), (0, YM, ridge_z + ROOF_T - 0.04), [MATS["roof_edge"]], None, ROOF)
+for x, inward in ((X0, 1), (X1, -1)):
+    tri_wall("gable_%d" % inward, x, inward, [(Y0, H), (Y1, H), (YM, ridge_z)], T_EXT, MATS["wall_outside"], ROOF)
+# 烟囱：落在后坡上
+cx, cy = 2.6, YM + 1.6
+cz = H + (Y1 - cy) * math.tan(PITCH) - 0.3
+box("chimney", (0.55, 0.55, ridge_z + 0.9 - cz), (cx, cy, cz), [MATS["chimney"]], None, ROOF)
+box("chimney_cap", (0.68, 0.68, 0.1), (cx, cy, ridge_z + 0.9), [MATS["roof_edge"]], None, ROOF)
+# 门口台阶（房子底座比地面高 0.25）
+box("door_step", (1.5, 0.6, 0.2), (-0.15, Y0 - 0.3, -0.25), [MATS["base_slab"]], None, ROOT, kind="base")
 
 # ---------- 7. 房间范围和位置点（导出成 three.js 坐标，给以后的互动空间用） ----------
 for rid, r in ROOMS.items():

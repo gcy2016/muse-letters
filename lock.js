@@ -3,6 +3,7 @@
 // 所以快递信息用同一个密码加密后才存进 issue；页面上解锁后才解得开。
 //   import { unlock, encrypt, decrypt } from "./lock.js";
 //   var key = await unlock();          // 没解锁过就弹出密码框，解锁过（本机记住了）直接返回
+//   if (await isUnlocked()) ...        // 只查本机开过锁没有，不弹框
 //   var text = await encrypt(key, obj); // "ENC1.<iv>.<密文>"
 //   var obj = await decrypt(key, text); // 解不开（密码改过、内容坏了）返回 null
 // 改密码：node tools/make_lock.mjs 新密码，把输出的几行换进 config.js 的 lock。改密码后旧的快递留言解不开，Muse 重新留一条就好。
@@ -26,18 +27,31 @@ function toKey(bits) {
   return crypto.subtle.importKey("raw", bits, "AES-GCM", false, ["encrypt", "decrypt"]);
 }
 
+// 这个浏览器之前开过锁没有（不弹密码框）。小岛用它决定入户门开着还是关着
+export async function isUnlocked() {
+  try {
+    var saved = localStorage.getItem(STORE);
+    return !!saved && await matches(unb64(saved));
+  } catch (e) {
+    return false;
+  }
+}
+
+// unlock({ cancelable: true })：密码框多一个“取消”，取消了返回 null（小岛上点门时用，不想进可以不进）
 var pending = null;
-export function unlock() {
+export function unlock(opts) {
   return pending || (pending = (async function () {
     try {
       var saved = localStorage.getItem(STORE);
       if (saved && await matches(unb64(saved))) return toKey(unb64(saved));
     } catch (e) {}
-    return toKey(await askPassword());
+    var bits = await askPassword(opts && opts.cancelable);
+    if (!bits) { pending = null; return null; }
+    return toKey(bits);
   })());
 }
 
-function askPassword() {
+function askPassword(cancelable) {
   var style = document.createElement("style");
   style.textContent =
     "#lock{position:fixed;inset:0;z-index:100;display:flex;align-items:center;justify-content:center;background:#f4efe8;font-family:-apple-system,'PingFang SC','Microsoft YaHei',sans-serif}" +
@@ -45,17 +59,21 @@ function askPassword() {
     "#lock h1{margin:0 0 4px;font-size:22px}#lock p{margin:0 0 16px;font-size:14px;color:#8a7d74}" +
     "#lock input{width:100%;box-sizing:border-box;padding:10px;font-size:20px;letter-spacing:6px;text-align:center;border:1px solid #eadfd6;border-radius:10px;background:#fdf6f0;color:#2b2420}" +
     "#lock button{margin-top:12px;width:100%;padding:10px;border:none;border-radius:10px;background:#e0607e;color:#fff;font-size:16px;cursor:pointer}" +
-    "#lock .err{min-height:20px;margin:8px 0 0;color:#d9534f}";
+    "#lock .err{min-height:20px;margin:8px 0 0;color:#d9534f}" +
+    "#lock button.cancel{margin-top:8px;background:#f1e8e0;color:#5a4636}";
   document.head.appendChild(style);
   var box = document.createElement("div");
   box.id = "lock";
   box.innerHTML = "<form><h1>🔒 大门锁</h1><p>输入密码开门</p>" +
     "<input id='lock-pw' type='password' inputmode='numeric' autocomplete='current-password' aria-label='密码' required>" +
-    "<button id='lock-open' type='submit'>开门</button><p class='err' id='lock-err'></p></form>";
+    "<button id='lock-open' type='submit'>开门</button>" +
+    (cancelable ? "<button id='lock-cancel' type='button' class='cancel'>取消</button>" : "") +
+    "<p class='err' id='lock-err'></p></form>";
   document.body.appendChild(box);
   var input = box.querySelector("input"), err = box.querySelector(".err");
   input.focus();
   return new Promise(function (resolve) {
+    if (cancelable) box.querySelector(".cancel").onclick = function () { box.remove(); style.remove(); resolve(null); };
     box.querySelector("form").onsubmit = async function (ev) {
       ev.preventDefault();
       err.textContent = "";
