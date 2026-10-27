@@ -70,12 +70,12 @@
     var house = await loading;
     scene.add(house.root);
 
-    // 待取件快递：玄关门口摆对应个数的快递盒（颜色按城市），点任意一个显示全部待取件
+    // 待取件快递（Muse 最新一次登记的）：玄关门口摆对应个数的快递盒（颜色按城市），点任意一个显示全部待取件
     var parcelGroup = null;
     function refreshParcels() {
-      return loadParcels(key).then(function (list) {
+      return loadParcels(key).then(function (snap) {
         if (parcelGroup) scene.remove(parcelGroup);
-        parcelGroup = makeParcelBoxes(list);
+        parcelGroup = makeParcelBoxes(snap && !snap.bad ? snap.parcels : []);
         scene.add(parcelGroup);
       }).catch(function (e) { console.warn("快递加载失败：", e.message); });
     }
@@ -155,7 +155,7 @@
     document.getElementById("close").onclick = function () {
       var wasParcels = !!content.querySelector("iframe[src^='parcels.html']");
       panel.classList.remove("open"); content.innerHTML = "";
-      if (wasParcels) refreshParcels(); // 可能刚在里面点了已取件
+      if (wasParcels) refreshParcels(); // 里面点过刷新的话，盒子也跟着更新
     };
     var NOTES = {
       computer: "<div class='msg'><b>电脑</b><br>以后在这里放入口：旅行相册、小游戏等（等 PRD 定）。</div>",

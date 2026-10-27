@@ -34,24 +34,23 @@ function labelMat(city) {
   return (labels[city] = new THREE.MeshStandardMaterial({ map: t, roughness: 0.7 }));
 }
 
-// 每个箱子摆歪一点的角度按 issue 编号固定（刷新后不会变）
+// 每个箱子摆歪一点的角度按它是第几件固定（刷新后不会变）
 function rand(n, k) {
   var x = Math.sin(n * 12.9898 + k * 78.233) * 43758.5453;
   return x - Math.floor(x);
 }
 
-function makeBox(p) {
+function makeBox(p, n) {
   var w = W, d = D, h = H;
-  var city = p.bad ? "?" : p.city;
   var g = new THREE.Group();
-  var body = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), boxMat(p.bad ? "#b9a28a" : cityColor(p.city)));
+  var body = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), boxMat(cityColor(p.city)));
   body.position.y = h / 2;
   g.add(body);
   var strip = new THREE.Mesh(new THREE.BoxGeometry(0.05, h + 0.004, d + 0.004), tape); // 胶带：从顶面绕到前后两面
   strip.position.y = h / 2;
   g.add(strip);
   var lw = Math.min(w * 0.38, 0.1);
-  var label = new THREE.Mesh(new THREE.PlaneGeometry(lw * 1.6, lw), labelMat(city)); // 面单贴在前面（朝 -z，对着屋里）
+  var label = new THREE.Mesh(new THREE.PlaneGeometry(lw * 1.6, lw), labelMat(p.city)); // 面单贴在前面（朝 -z，对着屋里）
   label.position.set(-w * 0.22, h * 0.5, -d / 2 - 0.002);
   label.rotation.y = Math.PI;
   g.add(label);
@@ -60,7 +59,7 @@ function makeBox(p) {
   top.rotation.set(-Math.PI / 2, 0, Math.PI / 2);
   g.add(top);
   g.traverse(function (o) { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; o.userData.parcel = true; } });
-  g.userData = { parcel: true, number: p.number };
+  g.userData = { parcel: true, index: n };
   return g;
 }
 
@@ -69,9 +68,9 @@ export function makeParcelBoxes(parcels) {
   group.name = "parcels";
   var boxes = [];
   parcels.slice(0, STACKS.length * PER_STACK).forEach(function (p, i) {
-    var b = makeBox(p), s = STACKS[Math.floor(i / PER_STACK)];
+    var b = makeBox(p, i), s = STACKS[Math.floor(i / PER_STACK)];
     b.position.set(s[0], (i % PER_STACK) * H, s[1]);
-    b.rotation.y = (rand(p.number, 4) - 0.5) * 0.16; // 稍微歪一点，不至于像一根柱子
+    b.rotation.y = (rand(i + 1, 4) - 0.5) * 0.16; // 稍微歪一点，不至于像一根柱子
     group.add(b);
     boxes.push(b);
   });
