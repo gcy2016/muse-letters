@@ -194,7 +194,7 @@ function overview(instant) {
 function atDoor(instant) { look(doorWorld, 0.3, 0.32, camera.aspect < 1 ? 16 : 11, instant); }
 
 // 房子：后台加载，好了再放上去（先显示小岛，不用干等）
-var house = null;
+var house = null, doorHotspot = null;
 hint.textContent = "房子加载中…";
 loadHouse(null, function (p) { hint.textContent = "房子加载中… " + Math.round(p * 100) + "%"; }).then(function (h) {
   house = h;
@@ -208,6 +208,10 @@ loadHouse(null, function (p) { hint.textContent = "房子加载中… " + Math.r
   var plaque = housePlaque();
   plaque.position.set(house.doorPosition.x, 2.46, house.doorPosition.z - 0.6 + 0.09); // 前墙外表面上，门框顶（2.11 米）和墙顶之间
   house.root.add(plaque);
+  // 门口的点击区（看不见）：门开着时门扇转进屋里了，点门洞也要算点门
+  doorHotspot = new THREE.Mesh(new THREE.BoxGeometry(1.1, 2.2, 0.6), new THREE.MeshBasicMaterial({ visible: false }));
+  doorHotspot.position.set(house.doorPosition.x, 1.1, house.doorPosition.z - 0.6);
+  house.root.add(doorHotspot);
   scene.add(house.root);
   house.root.updateMatrixWorld(true);
   doorWorld = house.root.localToWorld(house.doorPosition.clone()).setY(HOUSE_POS.y + 1.2);
@@ -249,8 +253,8 @@ function hit(ev) {
   pointer.x = ((ev.clientX - rect.left) / rect.width) * 2 - 1;
   pointer.y = -((ev.clientY - rect.top) / rect.height) * 2 + 1;
   raycaster.setFromCamera(pointer, camera);
-  var h = house ? house.pick(raycaster) : null;
-  return h && h.id === "door" ? "door" : null; // 从外面只认门
+  if (!doorHotspot) return null;
+  return raycaster.intersectObject(doorHotspot).length ? "door" : null; // 从外面只认门
 }
 var down = null;
 canvas.addEventListener("pointerdown", function (e) { down = { x: e.clientX, y: e.clientY }; if (!entering) goal = null; });

@@ -1,10 +1,11 @@
 # Muse 小岛 / 留言板
 
-- 首页 `index.html`：三维小岛（Three.js，库文件放在 `lib/`，不依赖外部 CDN）。点岛上的“留言板”木牌，或右上角“打开留言板”按钮，弹出留言板。
+- 首页 `index.html`：噜噜岛（Three.js，库文件放在 `lib/`，不依赖外部 CDN）。岛中间是噜噜之家（房屋模型盖上屋顶，`island.js`）；点房子的门进屋，打开 `house.html` 的玄关，屋里点“出门”或点门回到岛上（`index.html?from=house`，镜头停在门口）。门和大门锁连着：这个浏览器开过锁门就开着，没开过点门先输密码（可取消）。右上角“打开留言板”按钮弹出留言板。
 - 角色 3D 形象：小miu（橘白博美）`miu.js`、lulu（灰白虎斑起司猫）`lulu.js`，公共零件在 `avatar-kit.js`。单独预览页 `avatar.html?who=miu` / `avatar.html?who=lulu`。以后有精细 GLB 模型，放进 `assets/miu-avatar/`（或 `assets/lulu-avatar/`）并在对应文件顶部填 `GLB_URL` 即可替换。
 - 留言板 `board.html`：也可以单独打开。
 - 房屋模型 `house.html`：一整套房子（客厅、厨房餐厅、书房、卧室、玄关）。客厅是方案 B（grab3d Living Room）原样，其他房间的家具来自方案 C（Cozy Home Interiors），两者都是 CC0，原始文件和许可记录在 `assets/house/source/`。
   - 模型文件 `assets/house/house.glb`，由 `tools/build_house.py`（Blender 的 Python 模块 bpy）生成；改户型就改脚本里“户型”一节再跑一遍。
+  - 屋顶在 `tools/build_house.py` 里一起生成，`house.setView({ exterior: true })` 时显示（从外面看），`house.setDoor(true)` 开门。
   - 放进别的场景用 `house.js`：`loadHouse()` 加载，`update(camera)` 自动藏挡视线的墙，还有房间范围 `rooms`、角色位置点 `spots`、碰撞框 `colliders`、可点的东西 `pick()`（电脑、留言板、门、电视、沙发、床）。用法写在 `house.js` 开头。
   - 房间里的小miu 和 lulu 是带骨骼的精细模型（`assets/miu-avatar/miu.glb`、`assets/lulu-avatar/lulu.glb`，由混元生成的模型修好、简化、绑骨、压缩而来，流程写在 `tools/fix_avatar.py` 开头）。动作由 `pet.js` 用代码实时摆骨头：走、跳、眨眼、摇尾巴、转头、点头、转身、伸懒腰，步数次数随便定，默认自由活动。页面上点“让它们动”可以指挥，也能自己编一串（`走3步 跳1下 眨眼2次`）；给 Muse 用的网址：`house.html?do=miu:走2步 跳2下;lulu:眨眼2次`，加 `&free=0` 关掉自由活动。
 
