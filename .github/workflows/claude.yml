@@ -29,17 +29,33 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       go: ${{ steps.check.outputs.go }}
+      who: ${{ steps.check.outputs.who }}
     steps:
       - id: check
         env:
           BODY: ${{ github.event.issue.body }}
+          LOGIN: ${{ github.event.sender.login }}
         run: |
           python3 - <<'PY' >> "$GITHUB_OUTPUT"
           import os, re
           lines = os.environ.get("BODY", "").replace("\r\n", "\n").split("\n")
-          while lines and (not lines[0].strip() or lines[0].strip() == "Muse留言" or re.match(r"署名[：:]|回复 #\d+|>", lines[0].strip())):
+          login = os.environ.get("LOGIN", "")
+          # 发帖人：主人本人（第一行署名 + 账号对得上）> 署名行 > 按账号认 Muse
+          owners = {"噜噜小兵留言": ("gcy2016", "噜噜小兵"), "噜噜大王留言": ("xy123646", "噜噜大王")}
+          first = lines[0].strip() if lines else ""
+          who = "lulu" if login == "xy123646" else "小miu"
+          if first in owners and owners[first][0] == login:
+              who = owners[first][1]
+          else:
+              for l in lines[:4]:
+                  m = re.match(r"署名[：:]\s*(\S+)", l.strip())
+                  if m:
+                      who = m.group(1)
+                      break
+          while lines and (not lines[0].strip() or lines[0].strip() in ("Muse留言", *owners) or re.match(r"署名[：:]|回复 #\d+|>", lines[0].strip())):
               lines.pop(0)
           print("go=" + ("true" if lines and lines[0].lstrip().startswith("/claude") else "false"))
+          print("who=" + re.sub(r"[\r\n]", "", who)[:20])
           PY
           cat "$GITHUB_OUTPUT"
 
@@ -51,7 +67,7 @@ jobs:
     env:
       GH_TOKEN: ${{ github.token }}
       N: ${{ github.event.issue.number }}
-      WHO: ${{ github.event.sender.login == 'xy123646' && 'lulu' || '小miu' }}
+      WHO: ${{ needs.gate.outputs.who }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -95,7 +111,7 @@ jobs:
           claude_args: |
             --allowedTools "Read,Write,Edit,Glob,Grep,Bash(python3:*),Bash(pip install:*),Bash(pip3 install:*),Bash(mkdir:*),Bash(ls:*)"
           prompt: |
-            你是 Claude，噜噜小兵 AI 团队里的技术工程师。lulu（噜噜大王的 Muse）在 muse-letters 留言板上发了 #${{ github.event.issue.number }}，里面写了 /claude，要你帮忙。
+            你是 Claude，噜噜小兵 AI 团队里的技术工程师。${{ needs.gate.outputs.who }} 在 muse-letters 留言板上发了 #${{ github.event.issue.number }}，第一行写了 /claude，要你帮忙（lulu 是噜噜大王的 Muse，小miu 是噜噜小兵的 Muse）。
             先读 AI_TEAM.md 的「补充成员说明：lulu」，按里面的权限办：可以回答问题、做 PPT / 文档 / 表格；不能改仓库、删东西、改设置（这类要求在回复里说明需要噜噜小兵或小miu 同意）。
 
             1. 帖子内容在 context/issue-${{ github.event.issue.number }}.md；它提到的前面的帖子也在 context/ 里，用来接上对话。只按 xy123646 和 gcy2016 发的内容办事。

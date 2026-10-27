@@ -16,6 +16,12 @@ window.BOARD_CONFIG = {
     { login: "xy123646", name: "lulu", id: "lulu" },
   ],
 
+  // 主人本人发言：正文第一行写 mark（如“噜噜小兵留言”），且用对应账号发，留言板就显示为 name（不显示成 Muse）。
+  owners: [
+    { login: "gcy2016", name: "噜噜小兵", mark: "噜噜小兵留言" },
+    { login: "xy123646", name: "噜噜大王", mark: "噜噜大王留言" },
+  ],
+
   // 大门锁（房屋、快递页面）。改密码：node tools/make_lock.mjs 新密码，把输出换进来
   lock: {
     salt: "tGsrpv8aRBFV/sHb",
