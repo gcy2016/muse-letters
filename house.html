@@ -21,7 +21,8 @@
     #panel { position: fixed; inset: 0; display: none; background: rgba(20, 30, 40, 0.45); }
     #panel.open { display: block; }
     #panel .box { position: absolute; inset: 24px; max-width: 720px; margin: 0 auto; background: #fdf6f0; border-radius: 14px; overflow: hidden; box-shadow: 0 10px 40px rgba(0,0,0,.3); }
-    #panel iframe { width: 100%; height: 100%; border: 0; }
+    #content { position: absolute; inset: 0; overflow: auto; }
+    #panel iframe { display: block; width: 100%; height: 100%; border: 0; }
     #panel .msg { padding: 60px 28px; color: #5a4636; font-size: 16px; line-height: 1.8; }
     #close { position: absolute; right: 10px; top: 10px; z-index: 1; width: 36px; height: 36px; border-radius: 50%; border: none; background: #e0607e; color: #fff; font-size: 20px; cursor: pointer; }
     @media (max-width: 600px) { #panel .box { inset: 10px; } #bar button { padding: 6px 10px; font-size: 13px; } }
