@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>待取件快递</title>
+  <link rel="stylesheet" href="style.css">
+  <style>
+    input[type=text] {
+      display: block; width: 100%; margin-top: 6px; padding: 8px 10px; font: inherit; font-weight: normal;
+      color: var(--text); background: var(--bg); border: 1px solid var(--border); border-radius: 8px;
+    }
+    .row { display: flex; gap: 12px; }
+    .row > label { flex: 1; min-width: 0; }
+    .parcel { border: 1px solid var(--border); border-left: 8px solid var(--c); border-radius: 12px; padding: 12px 14px; margin-bottom: 12px; background: var(--card); }
+    .parcel .city { display: inline-block; padding: 0 10px; border-radius: 10px; background: var(--c); color: #fff; font-weight: 700; }
+    .parcel .code { font-size: 22px; font-weight: 700; letter-spacing: 1px; }
+    .parcel dl { margin: 8px 0 0; display: grid; grid-template-columns: auto 1fr; gap: 2px 12px; }
+    .parcel dt { color: var(--muted); }
+    .parcel dd { margin: 0; word-break: break-word; white-space: pre-wrap; }
+    .list-only #compose { display: none; }
+    .list-only header { display: none; }
+  </style>
+</head>
+<body>
+  <main>
+    <header>
+      <h1>待取件快递</h1>
+      <p class="sub">登记还没取的快递，房子玄关里会摆出对应个数的快递盒</p>
+    </header>
+
+    <section class="card" id="compose">
+      <h2>登记一件快递</h2>
+      <form id="form">
+        <label>我是
+          <select id="author" required></select>
+        </label>
+        <div class="row">
+          <label>城市
+            <select id="city" required></select>
+          </label>
+          <label id="city-other-box" hidden>其他城市
+            <input type="text" id="city-other" placeholder="城市名，如 成都">
+          </label>
+        </div>
+        <div class="row">
+          <label>快递公司
+            <input type="text" id="company" placeholder="如 顺丰、菜鸟驿站">
+          </label>
+          <label>取件码
+            <input type="text" id="code" placeholder="如 3-2-1024">
+          </label>
+        </div>
+        <label>取件地点
+          <input type="text" id="place" placeholder="如 小区东门菜鸟驿站">
+        </label>
+        <label>物品（可不填）
+          <input type="text" id="item" placeholder="如 衣服、书">
+        </label>
+        <label>备注（可不填）
+          <input type="text" id="note" placeholder="如 到期时间、快递单号">
+        </label>
+        <p class="hint">点“登记”后会打开 GitHub 的新建 issue 页面，内容已经加密填好，在那个页面点 <b>Create</b> 就登记好了（需要先登录 GitHub）。取件后，在下面这件快递上点“已取件”，到打开的 GitHub 页面点 <b>Close issue</b>。</p>
+        <button type="submit" id="send">登记</button>
+        <p id="send-status" class="status"></p>
+      </form>
+    </section>
+
+    <section>
+      <div class="list-head">
+        <h2>待取件</h2>
+        <button type="button" id="refresh" class="ghost">刷新</button>
+      </div>
+      <p id="status" class="status">加载中……</p>
+      <ol id="list" class="list"></ol>
+    </section>
+  </main>
+
+  <script src="config.js"></script>
+  <script type="module" src="parcels-page.js"></script>
+</body>
+</html>

@@ -15,4 +15,19 @@ window.BOARD_CONFIG = {
     { login: "gcy2016", name: "小miu", id: "miu" },
     { login: "xy123646", name: "lulu", id: "lulu" },
   ],
+
+  // 大门锁（房屋、快递页面）。改密码：node tools/make_lock.mjs 新密码，把输出换进来
+  lock: {
+    salt: "tGsrpv8aRBFV/sHb",
+    iterations: 200000,
+    check: "ElMbhHRQRlhuyro1a0WaHesr9nAttzZjv4uO4sAa+jE=",
+  },
+
+  // 待取件快递：每件 = 一个标题以 parcelPrefix 开头的 issue（内容加密），取件后 Close 掉
+  parcelPrefix: "[快递]",
+  // 城市 → 快递盒颜色，对应关系固定；新城市加在这里。没列出的城市按名字从备用颜色里固定挑一个
+  cityColors: {
+    "重庆": "#e0533d",
+    "武汉": "#3a86c8",
+  },
 };

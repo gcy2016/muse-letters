@@ -36,6 +36,7 @@
   <div id="bar"></div>
   <div id="hint">加载中…</div>
   <div id="panel"><div class="box"><button id="close" type="button">×</button><div id="content"></div></div></div>
+  <script src="config.js"></script>
   <script type="module">
     // 房屋模型预览页。?room=living 直接看某个房间；?walls=full 内墙全高；?az=0.8&el=0.7 固定视角（截图用）
     import * as THREE from "three";
@@ -43,6 +44,9 @@
     import { loadHouse, addHouseLights } from "./house.js";
     import { createMiu } from "./miu.js";
     import { createLulu } from "./lulu.js";
+    import { unlock } from "./lock.js";
+    import { loadParcels } from "./parcel-data.js";
+    import { makeParcelBoxes } from "./parcel-boxes.js";
 
     var params = new URLSearchParams(location.search);
     var canvas = document.getElementById("scene");
@@ -60,8 +64,22 @@
     controls.maxDistance = 70;
 
     var hint = document.getElementById("hint");
-    var house = await loadHouse(null, function (p) { hint.textContent = "加载中… " + Math.round(p * 100) + "%"; });
+    // 大门锁：输密码的同时模型在后台下载
+    var loading = loadHouse(null, function (p) { hint.textContent = "加载中… " + Math.round(p * 100) + "%"; });
+    var key = await unlock();
+    var house = await loading;
     scene.add(house.root);
+
+    // 待取件快递：玄关门口摆对应个数的快递盒（颜色按城市），点任意一个显示全部待取件
+    var parcelGroup = null;
+    function refreshParcels() {
+      return loadParcels(key).then(function (list) {
+        if (parcelGroup) scene.remove(parcelGroup);
+        parcelGroup = makeParcelBoxes(list);
+        scene.add(parcelGroup);
+      }).catch(function (e) { console.warn("快递加载失败：", e.message); });
+    }
+    refreshParcels();
 
     // 两个角色先放进来比比大小（角色模型高 1.6，缩到约 0.7 米）
     var AVATAR_SCALE = 0.45;
@@ -120,7 +138,7 @@
     });
     house.setView({ walls: params.get("walls") === "full" ? "full" : "low" });
     wallBtn.textContent = house.view.walls === "low" ? "内墙：矮" : "内墙：全高";
-    hint.textContent = "拖动旋转 · 滚轮/双指缩放 · 点电脑、留言板、门试试";
+    hint.textContent = "拖动旋转 · 滚轮/双指缩放 · 点电脑、留言板、门、快递盒试试";
 
     function resize() {
       renderer.setSize(window.innerWidth, window.innerHeight, false);
@@ -134,7 +152,11 @@
     // 点击：电脑 / 留言板 / 门
     var panel = document.getElementById("panel"), content = document.getElementById("content");
     function open(html) { content.innerHTML = html; panel.classList.add("open"); }
-    document.getElementById("close").onclick = function () { panel.classList.remove("open"); content.innerHTML = ""; };
+    document.getElementById("close").onclick = function () {
+      var wasParcels = !!content.querySelector("iframe[src^='parcels.html']");
+      panel.classList.remove("open"); content.innerHTML = "";
+      if (wasParcels) refreshParcels(); // 可能刚在里面点了已取件
+    };
     var NOTES = {
       computer: "<div class='msg'><b>电脑</b><br>以后在这里放入口：旅行相册、小游戏等（等 PRD 定）。</div>",
       door: "<div class='msg'><b>入户门</b><br>以后可以从这里出门，去小岛或别的地方（等 PRD 定）。</div>",
@@ -145,7 +167,19 @@
       var rect = canvas.getBoundingClientRect();
       pointer.set(((e.clientX - rect.left) / rect.width) * 2 - 1, -((e.clientY - rect.top) / rect.height) * 2 + 1);
       raycaster.setFromCamera(pointer, camera);
+      // 快递盒不在房子模型里，单独判断：比房子里先碰到的东西（墙、家具）更近才算点中
+      if (parcelGroup && parcelGroup.visible) {
+        var ph = raycaster.intersectObject(parcelGroup, true)[0];
+        if (ph) {
+          var first = raycaster.intersectObject(house.root, true).filter(function (x) { return shown(x.object); })[0];
+          if (!first || ph.distance < first.distance) return { id: "parcel", object: ph.object, point: ph.point };
+        }
+      }
       return house.pick(raycaster);
+    }
+    function shown(o) {
+      for (; o; o = o.parent) if (!o.visible) return false;
+      return true;
     }
     canvas.addEventListener("pointerdown", function (e) { down = { x: e.clientX, y: e.clientY }; goal = null; });
     canvas.addEventListener("pointerup", function (e) {
@@ -156,12 +190,13 @@
       var h = hit(e);
       if (!h) return;
       if (h.id === "board") open("<iframe src='board.html'></iframe>");
+      else if (h.id === "parcel") open("<iframe src='parcels.html?view=list'></iframe>");
       else if (NOTES[h.id]) open(NOTES[h.id]);
     });
     canvas.addEventListener("pointermove", function (e) {
       if (e.pointerType !== "mouse") return;
       var h = hit(e);
-      canvas.style.cursor = h && (h.id === "board" || NOTES[h.id]) ? "pointer" : "";
+      canvas.style.cursor = h && (h.id === "board" || h.id === "parcel" || NOTES[h.id]) ? "pointer" : "";
     });
 
     var clock = new THREE.Clock();
@@ -175,11 +210,13 @@
       if (!fixed) cast.forEach(function (a) { a.userData.animate(t); });
       controls.update();
       house.update(camera);
+      if (parcelGroup) parcelGroup.visible = !house.view.room || house.view.room === "entry";
       renderer.render(scene, camera);
     });
     document.title = "房屋模型";
     window.HOUSE = house;
     window.CAMERA = camera;
+    window.HOUSE_SCENE = scene;
     window.READY = true;
   </script>
 </body>
