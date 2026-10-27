@@ -1,17 +1,20 @@
 // 大门锁：输对密码才能进门（房屋、快递页面都用它）。
-// 只是页面上的门：仓库是公开的，issue 里的内容别人直接去 GitHub 还是能看到。
-//   import { unlock } from "./lock.js";
-//   await unlock(); // 没解锁过就弹出密码框，解锁过（本机记住了）直接通过
-// 改密码：node tools/make_lock.mjs 新密码，把输出的几行换进 config.js 的 lock。
+// 仓库是公开的，issue 谁都能看，只在页面上挡一下挡不住别人直接去 GitHub 看，
+// 所以快递信息用同一个密码加密后才存进 issue；页面上解锁后才解得开。
+//   import { unlock, encrypt, decrypt } from "./lock.js";
+//   var key = await unlock();          // 没解锁过就弹出密码框，解锁过（本机记住了）直接返回
+//   var text = await encrypt(key, obj); // "ENC1.<iv>.<密文>"
+//   var obj = await decrypt(key, text); // 解不开（密码改过、内容坏了）返回 null
+// 改密码：node tools/make_lock.mjs 新密码，把输出的几行换进 config.js 的 lock。改密码后旧的快递留言解不开，Muse 重新留一条就好。
 
 var cfg = window.BOARD_CONFIG.lock;
 var STORE = "muse-lock:" + cfg.salt;
-var enc = new TextEncoder();
+var enc = new TextEncoder(), dec = new TextDecoder();
 
 function b64(buf) { return btoa(String.fromCharCode.apply(null, new Uint8Array(buf))); }
 function unb64(s) { return Uint8Array.from(atob(s), function (c) { return c.charCodeAt(0); }); }
 
-// 密码 → PBKDF2 → SHA-256，和 config 里的 check 比对（config 里不存明文密码）
+// 密码 → 256 位密钥（PBKDF2）；config 里存的 check 是这把密钥的 SHA-256，用来判断密码对不对
 async function derive(password) {
   var base = await crypto.subtle.importKey("raw", enc.encode(password), "PBKDF2", false, ["deriveBits"]);
   return crypto.subtle.deriveBits({ name: "PBKDF2", salt: enc.encode(cfg.salt), iterations: cfg.iterations, hash: "SHA-256" }, base, 256);
@@ -19,15 +22,18 @@ async function derive(password) {
 async function matches(bits) {
   return b64(await crypto.subtle.digest("SHA-256", bits)) === cfg.check;
 }
+function toKey(bits) {
+  return crypto.subtle.importKey("raw", bits, "AES-GCM", false, ["encrypt", "decrypt"]);
+}
 
 var pending = null;
 export function unlock() {
   return pending || (pending = (async function () {
     try {
       var saved = localStorage.getItem(STORE);
-      if (saved && await matches(unb64(saved))) return;
+      if (saved && await matches(unb64(saved))) return toKey(unb64(saved));
     } catch (e) {}
-    await askPassword();
+    return toKey(await askPassword());
   })());
 }
 
@@ -61,4 +67,19 @@ function askPassword() {
       resolve(bits);
     };
   });
+}
+
+export async function encrypt(key, obj) {
+  var iv = crypto.getRandomValues(new Uint8Array(12));
+  var data = await crypto.subtle.encrypt({ name: "AES-GCM", iv: iv }, key, enc.encode(JSON.stringify(obj)));
+  return "ENC1." + b64(iv) + "." + b64(data);
+}
+
+export async function decrypt(key, text) {
+  var p = String(text).trim().split(".");
+  if (p.length !== 3 || p[0] !== "ENC1") return null;
+  try {
+    var data = await crypto.subtle.decrypt({ name: "AES-GCM", iv: unb64(p[1]) }, key, unb64(p[2]));
+    return JSON.parse(dec.decode(data));
+  } catch (e) { return null; }
 }

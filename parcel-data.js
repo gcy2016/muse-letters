@@ -1,6 +1,7 @@
-// 待取件快递的数据：Muse 每天在仓库里发一条标题以 [快递] 开头的留言，列出当天全部待取件；
+// 待取件快递的数据：Muse 每天发一条标题以 [快递] 开头的留言，列出当天全部待取件；
 // 只用最新的一条，新的一来旧的就不再显示，不用去关。房屋和快递页面共用。
-// 留言正文格式（每件以【城市】开头，城市决定快递盒颜色；一件都没有就不写【】）：
+// 内容在快递页面用大门锁密码加密后才发出（正文里 ENC1. 开头那行），开锁后用同一个密码解开。
+// 解开后的文字格式（每件以【城市】开头，城市决定快递盒颜色；一件都没有就不写【】）：
 //   Muse留言
 //   署名：小miu
 //
@@ -10,7 +11,9 @@
 //   物品：衣服
 //
 //   import { loadParcels, cityColor } from "./parcel-data.js";
-//   var snap = await loadParcels(); // { who, created_at, url, number, parcels: [{ city, code, place, item, other }] } 或 null（还没留过）
+//   var snap = await loadParcels(key); // { who, created_at, url, number, parcels: [{ city, code, place, item, other }], plain, bad } 或 null（还没留过）
+//   plain：这条没加密（直接在 GitHub 上手写的），照样显示；bad：解不开（多半是改密码前留的）
+import { decrypt } from "./lock.js";
 
 var cfg = window.BOARD_CONFIG;
 // 在 <owner>.github.io/<repo>/ 上打开时按网址识别仓库（和留言板一样）
@@ -82,16 +85,21 @@ async function fetchLatest() {
   return null;
 }
 
-export function toSnap(it) {
+export async function toSnap(key, it) {
   if (!it) return null;
   var sig = String(it.body || "").match(/^\s*署名[：:]\s*(.+)$/m);
-  return { number: it.number, url: it.url, created_at: it.created_at, who: sig ? sig[1].trim() : memberName(it.login), parcels: parseParcels(it.body) };
+  var snap = { number: it.number, url: it.url, created_at: it.created_at, who: sig ? sig[1].trim() : memberName(it.login), parcels: [] };
+  var line = String(it.body || "").split(/\r?\n/).filter(function (l) { return /^ENC1\./.test(l.trim()); })[0];
+  if (!line) return Object.assign(snap, { plain: true, parcels: parseParcels(it.body) });
+  var data = await decrypt(key, line);
+  if (!data || typeof data.text !== "string") return Object.assign(snap, { bad: true });
+  return Object.assign(snap, { parcels: parseParcels(data.text) });
 }
 
-export function cachedSnap() {
-  try { return toSnap(JSON.parse(localStorage.getItem(CACHE_KEY) || "null")); } catch (e) { return null; }
+export async function cachedSnap(key) {
+  try { return await toSnap(key, JSON.parse(localStorage.getItem(CACHE_KEY) || "null")); } catch (e) { return null; }
 }
 
-export async function loadParcels() {
-  return toSnap(await fetchLatest());
+export async function loadParcels(key) {
+  return toSnap(key, await fetchLatest());
 }

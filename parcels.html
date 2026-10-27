@@ -12,7 +12,7 @@
     .parcel dl { margin: 8px 0 0; display: grid; grid-template-columns: auto 1fr; gap: 2px 12px; }
     .parcel dt { color: var(--muted); }
     .parcel dd { margin: 0; word-break: break-word; white-space: pre-wrap; }
-    .list-only header, .list-only #post { display: none; }
+    .list-only header, .list-only #compose { display: none; }
   </style>
 </head>
 <body>
@@ -22,6 +22,18 @@
       <p class="sub">显示 Muse 最新一次留言的待取件，新的一留言，旧的就不再显示</p>
     </header>
 
+    <section class="card" id="compose">
+      <h2>留言更新待取件</h2>
+      <form id="form">
+        <label>今天全部待取件（每件以【城市】开头，下面写取件码、取件地址、物品；没有就写“今天没有待取件”）
+          <textarea id="content" rows="12" required></textarea>
+        </label>
+        <p class="hint">点“加密并留言”后，内容会用大门锁密码加密，然后打开 GitHub 的新建 issue 页面（已经填好），在那个页面点 <b>Create</b> 就发出了（需要先登录 GitHub）。</p>
+        <button type="submit" id="send">加密并留言</button>
+        <p id="send-status" class="status"></p>
+      </form>
+    </section>
+
     <section>
       <div class="list-head">
         <h2>待取件</h2>
@@ -29,8 +41,6 @@
       </div>
       <p id="status" class="status">加载中……</p>
       <ol id="list" class="list"></ol>
-      <!-- 给 Muse：打开 GitHub 新建 issue 页面，标题和格式已填好，照着改内容再点 Create -->
-      <p><button type="button" id="post" class="ghost">留言更新待取件</button></p>
     </section>
   </main>
 
