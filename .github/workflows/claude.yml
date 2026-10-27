@@ -56,6 +56,15 @@ jobs:
           done
           ls context
 
+      # 下面开了 CLAUDE_CODE_SUBPROCESS_ENV_SCRUB（Claude 运行的命令拿不到令牌），它要求有 bubblewrap；
+      # GitHub 的机器默认没装，Ubuntu 24.04 还默认限制非特权用户命名空间，bubblewrap 用不了，这里一并放开。
+      - name: 安装 bubblewrap
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq bubblewrap
+          sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0 || true
+          bwrap --ro-bind / / true && echo "bubblewrap OK"
+
       - uses: anthropics/claude-code-action@v1
         env:
           CLAUDE_CODE_SUBPROCESS_ENV_SCRUB: "1"
