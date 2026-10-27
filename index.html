@@ -13,21 +13,9 @@
       font-size: 14px; white-space: nowrap; pointer-events: none;
     }
     #title { position: fixed; left: 16px; top: 12px; color: #fff; font-size: 22px; font-weight: 700; text-shadow: 0 1px 4px rgba(0,0,0,.35); pointer-events: none; }
-    #open-board {
-      position: fixed; right: 16px; top: 12px; padding: 8px 16px; border: none; border-radius: 20px;
-      background: #e0607e; color: #fff; font-size: 15px; font-weight: 600; cursor: pointer; box-shadow: 0 2px 8px rgba(0,0,0,.2);
-    }
-    #panel { position: fixed; inset: 0; display: none; background: rgba(20, 30, 40, 0.45); }
-    #panel.open { display: block; }
-    #panel .box { position: absolute; inset: 24px; max-width: 720px; margin: 0 auto; background: #fdf6f0; border-radius: 14px; overflow: hidden; box-shadow: 0 10px 40px rgba(0,0,0,.3); }
-    #panel iframe { width: 100%; height: 100%; border: 0; }
-    #close {
-      position: absolute; right: 10px; top: 10px; z-index: 1; width: 36px; height: 36px; border-radius: 50%;
-      border: none; background: #e0607e; color: #fff; font-size: 20px; cursor: pointer;
-    }
     #fade { position: fixed; inset: 0; background: #f4efe8; opacity: 0; pointer-events: none; transition: opacity .6s; }
     #fade.on { opacity: 1; }
-    @media (max-width: 600px) { #panel .box { inset: 10px; } #hint { white-space: normal; text-align: center; width: max-content; max-width: calc(100% - 32px); } }
+    @media (max-width: 600px) { #hint { white-space: normal; text-align: center; width: max-content; max-width: calc(100% - 32px); } }
   </style>
   <script type="importmap">
     { "imports": { "three": "./lib/three.module.min.js" } }
@@ -36,15 +24,7 @@
 <body>
   <canvas id="scene"></canvas>
   <div id="title">噜噜岛</div>
-  <!-- 给 Muse（AI）用的入口：普通按钮比在 3D 画面里找可靠得多。也可以直接打开 board.html -->
-  <button id="open-board" type="button">打开留言板</button>
   <div id="hint">拖动旋转 · 滚轮/双指缩放 · 点门进屋</div>
-  <div id="panel">
-    <div class="box">
-      <button id="close" type="button" aria-label="关闭">×</button>
-      <iframe id="board" title="留言板"></iframe>
-    </div>
-  </div>
   <div id="fade"></div>
   <script src="config.js"></script>
   <script type="module" src="island.js"></script>

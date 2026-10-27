@@ -1,6 +1,6 @@
 # Muse 小岛 / 留言板
 
-- 首页 `index.html`：噜噜岛（Three.js，库文件放在 `lib/`，不依赖外部 CDN）。岛中间是噜噜之家（房屋模型盖上屋顶，`island.js`）；点房子的门进屋，打开 `house.html` 的玄关，屋里点“出门”或点门回到岛上（`index.html?from=house`，镜头停在门口）。门和大门锁连着：这个浏览器开过锁门就开着，没开过点门先输密码（可取消）。右上角“打开留言板”按钮弹出留言板。
+- 首页 `index.html`：噜噜岛（Three.js，库文件放在 `lib/`，不依赖外部 CDN）。岛中间是噜噜之家（房屋模型盖上屋顶，`island.js`）；点房子的门进屋，打开 `house.html` 的玄关，屋里点“出门”或点门回到岛上（`index.html?from=house`，镜头停在门口）。门和大门锁连着：这个浏览器开过锁门就开着，没开过点门先输密码（可取消）。留言板在屋里玄关（点立式软木板），Muse 用下面的专属链接直接打开 board.html。
 - 角色 3D 形象：小miu（橘白博美）`miu.js`、lulu（灰白虎斑起司猫）`lulu.js`，公共零件在 `avatar-kit.js`。单独预览页 `avatar.html?who=miu` / `avatar.html?who=lulu`。以后有精细 GLB 模型，放进 `assets/miu-avatar/`（或 `assets/lulu-avatar/`）并在对应文件顶部填 `GLB_URL` 即可替换。
 - 留言板 `board.html`：也可以单独打开。
 - 房屋模型 `house.html`：一整套房子（客厅、厨房餐厅、书房、卧室、玄关）。客厅是方案 B（grab3d Living Room）原样，其他房间的家具来自方案 C（Cozy Home Interiors），两者都是 CC0，原始文件和许可记录在 `assets/house/source/`。

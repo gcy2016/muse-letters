@@ -1,4 +1,4 @@
-// 噜噜岛：岛上是噜噜之家（house.js），从外面看盖着屋顶。右上角按钮打开留言板（board.html）；
+// 噜噜岛：岛上是噜噜之家（house.js），从外面看盖着屋顶。留言板在屋里（玄关）；
 // 点房子的门进屋（house.html，从玄关开始看）。门锁：这个浏览器开过锁，门就开着；没开过，点门先输密码。
 // 小岛单位是米，和房子一样。小miu 和 lulu 先只待在房子里。
 // ?from=house：从屋里出来，镜头停在门口
@@ -270,16 +270,6 @@ canvas.addEventListener("pointermove", function (e) {
   if (e.pointerType === "mouse") canvas.style.cursor = hit(e) ? "pointer" : "";
 });
 
-var panel = document.getElementById("panel");
-var frame = document.getElementById("board");
-function openBoard() {
-  if (!frame.src) frame.src = "board.html";
-  else frame.contentWindow.location.reload();
-  panel.classList.add("open");
-}
-document.getElementById("open-board").onclick = openBoard;
-document.getElementById("close").onclick = function () { panel.classList.remove("open"); };
-panel.addEventListener("click", function (e) { if (e.target === panel) panel.classList.remove("open"); });
 
 // 尺寸
 function resize() {
