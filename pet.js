@@ -14,6 +14,7 @@
 import * as THREE from "three";
 import { GLTFLoader } from "./lib/GLTFLoader.js";
 import { MeshoptDecoder } from "./lib/meshopt_decoder.module.js";
+import { fetchGlb } from "./glb-fetch.js";
 
 export var PET_URLS = {
   miu: new URL("./assets/miu-avatar/miu.glb", import.meta.url).href,
@@ -52,10 +53,15 @@ export function parseProgram(text) {
   return steps;
 }
 
+// opts.onProgress(已下载字节, 总字节)：可选，显示下载进度用（按 GLB 文件头里的真实大小算）
 export function loadPet(who, opts) {
   opts = opts || {};
   var loader = new GLTFLoader().setMeshoptDecoder(MeshoptDecoder);
-  return loader.loadAsync(opts.url || PET_URLS[who]).then(function (gltf) { return makePet(who, gltf.scene, opts); });
+  var url = opts.url || PET_URLS[who];
+  var got = opts.onProgress
+    ? fetchGlb(url, opts.onProgress).then(function (buf) { return loader.parseAsync(buf, url.replace(/[^/]*$/, "")); })
+    : loader.loadAsync(url);
+  return got.then(function (gltf) { return makePet(who, gltf.scene, opts); });
 }
 
 function makePet(who, model, opts) {

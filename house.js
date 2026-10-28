@@ -18,16 +18,20 @@ import * as THREE from "three";
 import { GLTFLoader } from "./lib/GLTFLoader.js";
 import { RoomEnvironment } from "./lib/RoomEnvironment.js";
 import { MeshoptDecoder } from "./lib/meshopt_decoder.module.js";
+import { fetchGlb } from "./glb-fetch.js";
 
 export var HOUSE_URL = new URL("./assets/house/house.glb", import.meta.url).href;
 var LOW_WALL = 1.0;   // 矮墙模式下内墙的高度
 var STUB_WALL = 0.12; // 挡住视线的墙只留这么高的墙脚（门照样立着）
 
-// onProgress(已下载比例 0~1)：模型约 1 MB，网慢时用来显示进度
+// onProgress(比例 0~1, 已下载字节, 总字节)：模型约 1 MB，网慢时用来显示进度（按 GLB 文件头里的真实大小算，最高 100%）
 export function loadHouse(url, onProgress) {
   var loader = new GLTFLoader().setMeshoptDecoder(MeshoptDecoder);
-  return loader.loadAsync(url || HOUSE_URL, function (e) {
-    if (onProgress && e.total) onProgress(e.loaded / e.total);
+  url = url || HOUSE_URL;
+  return fetchGlb(url, function (loaded, total) {
+    if (onProgress && total) onProgress(Math.min(1, loaded / total), loaded, total);
+  }).then(function (buf) {
+    return loader.parseAsync(buf, url.replace(/[^/]*$/, ""));
   }).then(function (gltf) { return makeHouse(gltf.scene); });
 }
 

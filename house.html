@@ -70,6 +70,7 @@
     import { OrbitControls } from "./lib/OrbitControls.js";
     import { loadHouse, addHouseLights } from "./house.js";
     import { loadPet } from "./pet.js";
+    import { progressGroup } from "./glb-fetch.js";
     import { unlock } from "./lock.js";
     import { loadParcels } from "./parcel-data.js";
     import { makeParcelBoxes } from "./parcel-boxes.js";
@@ -95,7 +96,9 @@
 
     var hint = document.getElementById("hint");
     // 大门锁：输密码的同时模型在后台下载
-    var loading = loadHouse(null, function (p) { hint.textContent = "加载中… " + Math.round(p * 100) + "%"; });
+    // 进度：房子和两只角色三个文件合在一起算（glb-fetch.js），一直走到 100%，不会停在中间
+    var progress = progressGroup(3, function (p) { hint.textContent = "加载中… " + Math.round(p * 100) + "%"; });
+    var loading = loadHouse(null, function (p, loaded, total) { progress(0)(loaded, total); });
     // 两只角色（带骨骼的精细模型，会走会跳会眨眼）也同时下载；走路时只能在自己房间里、不撞家具和墙
     var house = null;
     function canStandIn(room) {
@@ -108,7 +111,7 @@
     var PETS = [{ id: "miu", label: "小miu", spot: "living" }, { id: "lulu", label: "lulu", spot: "tv" }];
     var petsLoading = Promise.all(PETS.map(function (p) {
       var room = null;
-      return loadPet(p.id, { height: 0.72, canStand: function (x, z) { return canStandIn(room)(x, z); } }).then(function (pet) {
+      return loadPet(p.id, { height: 0.72, onProgress: progress(PETS.indexOf(p) + 1), canStand: function (x, z) { return canStandIn(room)(x, z); } }).then(function (pet) {
         pet.setRoom = function (id) { room = id; };
         return pet;
       });
