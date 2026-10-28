@@ -4,6 +4,7 @@
 //   import { getWeather, skyKind, skyPlace } from "./weather-data.js";
 //   var w = await getWeather();   // { places: [{ src, city, name, who, tomorrow, after, air, tip, other, date, stale, published, source, url }], sources }
 //   网址加 ?wx=demo 用示例数据看效果，?wx=小雨（或任一天气用词）把示例里重庆明天的天气换成这种
+import { recentIssues } from "./gh-issues.js";
 var cfg = window.BOARD_CONFIG;
 var m = location.hostname.match(/^([^.]+)\.github\.io$/i);
 var seg = location.pathname.split("/")[1];
@@ -114,21 +115,14 @@ var CACHE_KEY = "muse-weather-cache2:" + owner + "/" + repo;
 export function cachedWeather() {
   try { var c = JSON.parse(localStorage.getItem(CACHE_KEY) || "null"); return c ? merge(c) : null; } catch (e) { return null; }
 }
-// 翻最近的 issue（一般第一页就有，最多 3 页），每个来源找它最新的一条 [天气]
+// 每个来源最新的一条 [天气]：从全站共用的最近帖子里找（gh-issues.js，不再单独问 GitHub，也不往后翻页）
 export async function loadWeather() {
   var src = sources(), found = src.map(function () { return null; });
-  for (var page = 1; page <= 3 && found.some(function (f) { return !f; }); page++) {
-    var r = await fetch("https://api.github.com/repos/" + owner + "/" + repo + "/issues?state=open&sort=created&direction=desc&per_page=100&page=" + page,
-      { headers: { Accept: "application/vnd.github+json" }, cache: "no-cache" });
-    if (!r.ok) throw new Error("GitHub 返回 " + r.status + (r.status === 403 ? "（可能是访问太频繁，过一会儿再刷新）" : ""));
-    var list = await r.json();
-    list.forEach(function (it) {
-      if (it.pull_request || it.title.indexOf(PREFIX) !== 0) return;
-      var i = src.findIndex(function (s2) { return s2.login.toLowerCase() === String(it.user.login).toLowerCase(); });
-      if (i >= 0 && !found[i]) found[i] = { number: it.number, url: it.html_url, created_at: it.created_at, body: it.body };
-    });
-    if (list.length < 100) break;
-  }
+  (await recentIssues()).forEach(function (it) {
+    if (it.pull_request || it.title.indexOf(PREFIX) !== 0) return;
+    var i = src.findIndex(function (s2) { return s2.login.toLowerCase() === String(it.user.login).toLowerCase(); });
+    if (i >= 0 && !found[i]) found[i] = { number: it.number, url: it.html_url, created_at: it.created_at, body: it.body };
+  });
   try { localStorage.setItem(CACHE_KEY, JSON.stringify(found)); } catch (e) {}
   return merge(found);
 }

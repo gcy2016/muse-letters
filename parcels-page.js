@@ -51,21 +51,21 @@ function render(snap, note) {
 
 var key = await unlock();
 var loading = false;
-async function load() {
+async function load(force) {
   if (loading) return;
   loading = true;
   var cached = await cachedSnap(key);
   if (cached) render(cached, "正在更新……（先显示的是上次看到的）");
   else $("status").textContent = "加载中……";
   try {
-    render(await loadParcels(key));
+    render(await loadParcels(key, { force: force }));
   } catch (e) {
     if (cached) render(cached, "更新失败（" + e.message + "），下面是上次看到的，可点“刷新”重试。");
     else $("status").textContent = "加载失败：" + e.message;
   }
   loading = false;
 }
-$("refresh").onclick = load;
+$("refresh").onclick = function () { load(true); };
 load();
 
 // 加密并留言：先同步开好空白窗口，免得加密完再开被浏览器当成弹窗拦掉

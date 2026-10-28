@@ -14,6 +14,7 @@
 //   var snap = await loadParcels(key); // { who, created_at, url, number, parcels: [{ city, code, place, item, other }], plain, bad } 或 null（还没留过）
 //   plain：这条没加密（直接在 GitHub 上手写的），照样显示；bad：解不开（多半是改密码前留的）
 import { decrypt } from "./lock.js";
+import { recentIssues } from "./gh-issues.js";
 
 var cfg = window.BOARD_CONFIG;
 // 在 <owner>.github.io/<repo>/ 上打开时按网址识别仓库（和留言板一样）
@@ -64,24 +65,17 @@ export function parseParcels(body) {
 
 var CACHE_KEY = "muse-parcels-cache:" + owner + "/" + repo;
 
-// 找最新的一条 [快递]（issue 按创建时间从新到旧，一般第一页就有；最多翻 3 页）。ETag 和缓存的思路同留言板
-async function fetchLatest() {
-  for (var page = 1; page <= 3; page++) {
-    var r = await fetch("https://api.github.com/repos/" + owner + "/" + repo + "/issues?state=open&sort=created&direction=desc&per_page=100&page=" + page,
-      { headers: { Accept: "application/vnd.github+json" }, cache: "no-cache" });
-    if (!r.ok) throw new Error("GitHub 返回 " + r.status + (r.status === 403 ? "（可能是访问太频繁，过一会儿再刷新）" : ""));
-    var list = await r.json();
-    for (var i = 0; i < list.length; i++) {
-      var it = list[i];
-      if (!it.pull_request && it.title.indexOf(cfg.parcelPrefix) === 0 && memberName(it.user.login)) {
-        var found = { number: it.number, url: it.html_url, created_at: it.created_at, login: it.user.login, body: it.body };
-        try { localStorage.setItem(CACHE_KEY, JSON.stringify(found)); } catch (e) {}
-        return found;
-      }
+// 最新的一条 [快递]：从全站共用的最近帖子里找（gh-issues.js，不再单独问 GitHub）
+async function fetchLatest(opts) {
+  var list = await recentIssues(opts);
+  for (var i = 0; i < list.length; i++) {
+    var it = list[i];
+    if (!it.pull_request && it.title.indexOf(cfg.parcelPrefix) === 0 && memberName(it.user.login)) {
+      var found = { number: it.number, url: it.html_url, created_at: it.created_at, login: it.user.login, body: it.body };
+      try { localStorage.setItem(CACHE_KEY, JSON.stringify(found)); } catch (e) {}
+      return found;
     }
-    if (list.length < 100) break;
   }
-  try { localStorage.removeItem(CACHE_KEY); } catch (e) {}
   return null;
 }
 
@@ -100,6 +94,7 @@ export async function cachedSnap(key) {
   try { return await toSnap(key, JSON.parse(localStorage.getItem(CACHE_KEY) || "null")); } catch (e) { return null; }
 }
 
-export async function loadParcels(key) {
-  return toSnap(key, await fetchLatest());
+// opts.force：“刷新”按钮用，马上问一次 GitHub
+export async function loadParcels(key, opts) {
+  return toSnap(key, await fetchLatest(opts));
 }

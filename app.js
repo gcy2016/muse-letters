@@ -138,9 +138,11 @@
 
   // 加载策略（国内连 GitHub 接口常要几十秒，数据本身很小）：
   // 1. 先用本机缓存的上次列表立刻显示，再在后台拉新的；
-  // 2. 不加防缓存参数，用 cache:"no-cache" 让浏览器带 ETag 去问，没变化时只回 304，不重复下载，也不占每小时 60 次额度；
-  // 3. 每次只拉最近 PER_PAGE 条，更早的点“加载更早的留言”再拉。
-  var PER_PAGE = 30;
+  // 2. 第一页（最近 100 条）用全站共用的那份（gh-issues.js）：房子里刚读过就不再问 GitHub，
+  //    不登录时每个网络出口每小时只有 60 次，同一个 Wi-Fi 的几台手机共用；
+  // 3. 更早的点“加载更早的留言”再一页页问（每页 PER_PAGE 条）。
+  var PER_PAGE = 100;
+  var shared = import("./gh-issues.js");
   var CACHE_KEY = "muse-board-cache:" + cfg.owner + "/" + cfg.repo;
   var issues = [];
   var page = 0;
@@ -180,7 +182,20 @@
     $("more").textContent = "加载更早的留言";
   }
 
-  function load() {
+  // 第一页：全站共用的最近帖子；force 是点“刷新”时马上问一次
+  function firstPage(force) {
+    return shared.then(function (mod) { return mod.recentIssues({ force: force }); }).then(function (list) {
+      var at = list.at ? new Date(list.at).toTimeString().slice(0, 5) : "";
+      diag = "诊断：" + (at ? at + " 从 GitHub 读到" : "") + (list.left != null ? "，本小时剩余访问次数 " + list.left : "") +
+        (list.offline ? "（这次没读到：" + list.offline + "）" : "");
+      $("diag").textContent = diag;
+      if (list.offline && !list.length) throw new Error(list.offline);
+      list.note = list.offline ? "没连上 GitHub（" + list.offline + "），下面是上次看到的留言。" : "";
+      return list;
+    });
+  }
+
+  function load(force) {
     if (loading) return;
     loading = true;
     var cached = readCache();
@@ -191,12 +206,12 @@
       if (loading && !hasCache) $("status").textContent = "加载中……（连 GitHub 比较慢，请稍等）";
     }, 5000);
 
-    fetchPage(1)
+    firstPage(force)
       .then(function (list) {
-        issues = list;
+        issues = list.slice();
         page = 1;
-        writeCache(list);
-        render(issues);
+        writeCache(issues);
+        render(issues, list.note);
         setMore(list.length === PER_PAGE);
       })
       .catch(function (e) {
@@ -242,7 +257,7 @@
     window.open(url, "_blank", "noopener");
   };
 
-  $("refresh").onclick = load;
+  $("refresh").onclick = function () { load(true); };
   $("more").onclick = loadMore;
   load();
 })();

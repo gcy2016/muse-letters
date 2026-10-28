@@ -1,9 +1,10 @@
 // 留言板的最近留言（给 3D 空间用：常驻按钮的红点、玄关软木板上的便利贴）。认人的规则和 app.js（留言板网页）一样。
-// 每 10 分钟读一次 GitHub；带 ETag，没变化时 GitHub 回 304，不占访问次数。
+// 每 10 分钟读一次；数据来自全站共用的最近帖子（gh-issues.js），不单独问 GitHub。
 //   import { watchBoard, markSeen, hasNew } from "./board-feed.js";
 //   watchBoard(function (list) { ... });  // list：最新的在前，[{ number, who, cls, text, created_at, url }]；cls 和留言板网页的样式名一样：m0 / m1 / o0 / o1 / claude
 //   hasNew(list)   // 有没有“上次打开留言板之后”的新留言
 //   markSeen(list) // 打开过留言板了，红点消掉
+import { recentIssues } from "./gh-issues.js";
 var cfg = window.BOARD_CONFIG;
 var m = location.hostname.match(/^([^.]+)\.github\.io$/i);
 var seg = location.pathname.split("/")[1];
@@ -44,14 +45,8 @@ function toMsg(it) {
 
 function readCache() { try { return JSON.parse(localStorage.getItem(CACHE) || "null"); } catch (e) { return null; } }
 async function fetchList() {
-  var c = readCache();
-  var headers = { Accept: "application/vnd.github+json" };
-  if (c && c.etag) headers["If-None-Match"] = c.etag;
-  var r = await fetch("https://api.github.com/repos/" + owner + "/" + repo + "/issues?state=open&sort=created&direction=desc&per_page=50", { headers: headers, cache: "no-cache" });
-  if (r.status === 304 && c) return c.list;
-  if (!r.ok) throw new Error("GitHub 返回 " + r.status);
-  var list = (await r.json()).map(toMsg).filter(Boolean).slice(0, 20);
-  try { localStorage.setItem(CACHE, JSON.stringify({ etag: r.headers.get("ETag"), list: list })); } catch (e) {}
+  var list = (await recentIssues()).map(toMsg).filter(Boolean).slice(0, 20);
+  try { localStorage.setItem(CACHE, JSON.stringify({ list: list })); } catch (e) {}
   return list;
 }
 

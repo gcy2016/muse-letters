@@ -35,18 +35,33 @@
     #panel .tv .map { flex: 1; min-height: 0; background: #e6edf8; border-radius: 10px; }
     #panel .tv .map svg { width: 100%; height: 100%; }
     #close { position: absolute; right: 10px; top: 10px; z-index: 1; width: 36px; height: 36px; border-radius: 50%; border: none; background: #e0607e; color: #fff; font-size: 20px; cursor: pointer; }
+    /* 动作面板：顶上拖动条、选哪只，下面两个上下滚动的选择轮（像手机闹钟选时间），滑到中间框里点一下就开始 */
     #pets {
-      position: fixed; left: 12px; bottom: 52px; display: none; width: 300px; max-width: calc(100% - 24px); box-sizing: border-box;
-      background: rgba(255, 255, 255, 0.94); border-radius: 14px; padding: 10px; box-shadow: 0 4px 16px rgba(0, 0, 0, .15); color: #5a4636; font-size: 14px;
+      position: fixed; left: 12px; bottom: 52px; display: none; width: 236px; box-sizing: border-box;
+      background: rgba(255, 255, 255, 0.94); border-radius: 14px; padding: 4px 8px 8px; box-shadow: 0 4px 16px rgba(0, 0, 0, .15); color: #5a4636; font-size: 14px;
     }
     #pets.open { display: block; }
-    #pets .who { display: flex; gap: 6px; margin-bottom: 8px; }
-    #pets .who button { flex: 1; }
-    #pets .acts { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; }
-    #pets button { padding: 6px 11px; border: none; border-radius: 16px; background: #f2e8dd; color: #5a4636; font-size: 14px; cursor: pointer; }
-    #pets button.on { background: #e0607e; color: #fff; }
-    #pets .own { display: flex; gap: 6px; }
-    #pets input { flex: 1; min-width: 0; padding: 6px 10px; border: 1px solid #e3d6c8; border-radius: 16px; font-size: 14px; }
+    #pets .drag { height: 16px; margin: 0 -8px 2px; cursor: grab; touch-action: none; }
+    #pets .drag::before { content: ""; display: block; width: 36px; height: 4px; margin: 6px auto 0; border-radius: 2px; background: #d8cbbd; }
+    #pets.dragging .drag { cursor: grabbing; }
+    #pets .who { display: flex; gap: 2px; padding: 2px; margin-bottom: 6px; border-radius: 14px; background: #f2e8dd; }
+    #pets .who button { flex: 1; padding: 4px 0; border: none; border-radius: 12px; background: transparent; color: #5a4636; font-size: 13px; cursor: pointer; }
+    #pets .who button.on { background: #e0607e; color: #fff; }
+    #pets .wheels { display: flex; gap: 6px; }
+    #pets .col { flex: 1; min-width: 0; }
+    #pets .label { margin: 0 0 2px; color: #9a8a7c; font-size: 12px; text-align: center; }
+    #pets .wheel { position: relative; }
+    #pets .wheel::after { content: ""; position: absolute; left: 0; right: 0; top: 32px; height: 32px; border-radius: 9px; background: rgba(224, 96, 126, 0.1); border: 1px solid rgba(224, 96, 126, 0.45); box-sizing: border-box; pointer-events: none; }
+    #pets .list {
+      height: 96px; overflow-y: auto; scroll-snap-type: y mandatory; scrollbar-width: none; overscroll-behavior: contain;
+      -webkit-mask-image: linear-gradient(transparent, #000 30%, #000 70%, transparent); mask-image: linear-gradient(transparent, #000 30%, #000 70%, transparent);
+    }
+    #pets .list::-webkit-scrollbar { display: none; }
+    #pets .list::before, #pets .list::after { content: ""; display: block; height: 32px; }
+    #pets .opt { height: 32px; line-height: 32px; text-align: center; scroll-snap-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: #9a8a7c; cursor: pointer; user-select: none; -webkit-user-select: none; }
+    #pets .opt.sel { color: #3d3027; font-weight: 600; }
+    #pets .opt.go { color: #e0607e; }
+    #pets .tip { margin: 4px 0 0; color: #b4a596; font-size: 11px; text-align: center; }
     @media (max-width: 600px) { #panel .box { inset: 10px; } #bar button { padding: 6px 10px; font-size: 13px; } }
   </style>
   <script type="importmap">
@@ -59,9 +74,13 @@
   <div id="bar"></div>
   <div id="hint">加载中…</div>
   <div id="pets">
+    <div class="drag" title="按住拖动"></div>
     <div class="who"></div>
-    <div class="acts"></div>
-    <div class="own"><input id="prog" placeholder="自己编：走3步 跳1下 眨眼2次"><button id="run" type="button">做</button></div>
+    <div class="wheels">
+      <div class="col"><p class="label">一只动</p><div class="wheel"><div class="list" id="w-act"></div></div></div>
+      <div class="col"><p class="label">一起玩</p><div class="wheel"><div class="list" id="w-play"></div></div></div>
+    </div>
+    <p class="tip">上下滑动选，点中间框里的就开始</p>
   </div>
   <div id="panel"><div class="box"><button id="close" type="button">×</button><div id="content"></div></div></div>
   <script src="config.js"></script>
@@ -71,6 +90,7 @@
     import { OrbitControls } from "./lib/OrbitControls.js";
     import { loadHouse, addHouseLights } from "./house.js";
     import { loadPet } from "./pet.js";
+    import { together, stopTogether, TOGETHER } from "./pet-together.js";
     import { progressGroup } from "./glb-fetch.js";
     import { unlock } from "./lock.js";
     import { loadParcels } from "./parcel-data.js";
@@ -354,38 +374,96 @@
       canvas.style.cursor = h && (h.id === "board" || h.id === "parcel" || h.id === "door" || h.id === "tv" || h.id === "map" || h.id === "weather" || /^calendar/.test(h.id) || NOTES[h.id]) ? "pointer" : "";
     });
 
-    // 动作面板：选一只，点按钮或者自己编一串（“走3步 跳1下 眨眼2次”）
+    // 动作面板：选哪只（小miu / lulu），左边选一只做的动作、右边选两只一起玩，都是上下滚动的选择轮，点中间框里的就开始
     // 给 Muse 用的网址：house.html?do=miu:走2步 跳2下;lulu:眨眼2次 打开就照着做；?free=0 关掉自由活动
     var petsBox = document.getElementById("pets");
     var who = 0;
-    var whoBox = petsBox.querySelector(".who"), actBox = petsBox.querySelector(".acts");
+    var whoBox = petsBox.querySelector(".who");
     var whoBtns = PETS.map(function (p, i) {
       var b = document.createElement("button");
       b.type = "button"; b.textContent = p.label;
-      b.onclick = function () { who = i; whoBtns.forEach(function (x, j) { x.classList.toggle("on", j === i); }); freeBtn.classList.toggle("on", pets[who].free); };
+      b.onclick = function () { who = i; whoBtns.forEach(function (x, j) { x.classList.toggle("on", j === i); }); freeOpt.textContent = freeLabel(); };
       whoBox.appendChild(b);
       return b;
     });
-    function act(text, prog) {
-      var b = document.createElement("button");
-      b.type = "button"; b.textContent = text;
-      b.onclick = function () { pets[who].stop(); pets[who].play(prog); };
-      actBox.appendChild(b);
-      return b;
+    // 选择轮：items 是 [{ label, run(选项那一格) }]。滑动时停在哪格就选中哪格；点选中的那格就 run，点别的格先滚过去
+    var ROW = 32;
+    function wheel(list, items) {
+      var sel = 0;
+      var opts = items.map(function (it, i) {
+        var d = document.createElement("div");
+        d.className = "opt"; d.textContent = it.label;
+        d.onclick = function () {
+          if (i !== sel) { list.scrollTo({ top: i * ROW, behavior: "smooth" }); return; }
+          d.classList.add("go");
+          setTimeout(function () { d.classList.remove("go"); }, 400);
+          it.run(d);
+        };
+        list.appendChild(d);
+        return d;
+      });
+      function mark() { opts.forEach(function (d, i) { d.classList.toggle("sel", i === sel); }); }
+      list.addEventListener("scroll", function () {
+        var i = Math.max(0, Math.min(opts.length - 1, Math.round(list.scrollTop / ROW)));
+        if (i !== sel) { sel = i; mark(); }
+      });
+      mark();
+      return opts;
     }
-    act("走两步", "走2步"); act("跳两下", "跳2下"); act("眨眨眼", "眨眼2次"); act("摇尾巴", "摇尾巴4下");
-    act("转头看看", "转头"); act("点点头", "点头2下"); act("伸懒腰", "伸懒腰"); act("转个身", "转身");
-    act("来一套", "走3步 转头 跳2下 摇尾巴4下 眨眼2次");
-    var freeBtn = document.createElement("button");
-    freeBtn.type = "button"; freeBtn.textContent = "自由活动";
-    freeBtn.onclick = function () { pets[who].setFree(!pets[who].free); freeBtn.classList.toggle("on", pets[who].free); };
-    actBox.appendChild(freeBtn);
+    function act(label, prog) {
+      return { label: label, run: function () { stopTogether().then(function () { pets[who].stop(); pets[who].play(prog); }); } };
+    }
+    function freeLabel() { return "自由活动：" + (pets[who].free ? "开" : "关"); }
+    var actOpts = wheel(document.getElementById("w-act"), [
+      act("走两步", "走2步"), act("跳两下", "跳2下"), act("眨眨眼", "眨眼2次"), act("摇尾巴", "摇尾巴4下"),
+      act("转头看看", "转头"), act("点点头", "点头2下"), act("伸懒腰", "伸懒腰"), act("转个身", "转身"),
+      act("来一套", "走3步 转头 跳2下 摇尾巴4下 眨眼2次"),
+      { label: "", run: function (d) { pets[who].setFree(!pets[who].free); d.textContent = freeLabel(); } },
+    ]);
+    var freeOpt = actOpts[actOpts.length - 1];
+    // 两只一起玩（pet-together.js）：选中的那只是发起的，跑过去找另一只
+    wheel(document.getElementById("w-play"), TOGETHER.map(function (t) {
+      return { label: t.label, run: function () { together(pets[who], pets[1 - who], t.id); } };
+    }));
     whoBtns[0].onclick();
-    var progInput = document.getElementById("prog");
-    function runOwn() { if (progInput.value.trim()) { pets[who].stop(); pets[who].play(progInput.value); } }
-    document.getElementById("run").onclick = runOwn;
-    progInput.addEventListener("keydown", function (e) { if (e.key === "Enter") runOwn(); });
-    button("pets", "让它们动", function () { petsBox.classList.toggle("open"); buttons.pets.classList.toggle("on", petsBox.classList.contains("open")); });
+    // 面板可以拖：按住顶上的小横条拖到哪就停在哪（不挡画面），位置记在本机；窗口变小时拉回屏幕里
+    var drag = petsBox.querySelector(".drag"), PETS_POS = "muse-pets-panel-pos", dragFrom = null;
+    function placePanel(x, y) {
+      var w = petsBox.offsetWidth, h = petsBox.offsetHeight;
+      x = Math.max(4, Math.min(window.innerWidth - w - 4, x));
+      y = Math.max(4, Math.min(window.innerHeight - h - 4, y));
+      Object.assign(petsBox.style, { left: x + "px", top: y + "px", bottom: "auto" });
+      return { x: x, y: y };
+    }
+    drag.addEventListener("pointerdown", function (e) {
+      var r = petsBox.getBoundingClientRect();
+      dragFrom = { dx: e.clientX - r.left, dy: e.clientY - r.top };
+      drag.setPointerCapture(e.pointerId);
+      petsBox.classList.add("dragging");
+      e.preventDefault();
+    });
+    drag.addEventListener("pointermove", function (e) { if (dragFrom) placePanel(e.clientX - dragFrom.dx, e.clientY - dragFrom.dy); });
+    function endDrag() {
+      if (!dragFrom) return;
+      dragFrom = null;
+      petsBox.classList.remove("dragging");
+      var r = petsBox.getBoundingClientRect();
+      try { localStorage.setItem(PETS_POS, JSON.stringify({ x: r.left, y: r.top })); } catch (e) {}
+    }
+    drag.addEventListener("pointerup", endDrag);
+    drag.addEventListener("pointercancel", endDrag);
+    function restorePanel() {
+      var p = null;
+      try { p = JSON.parse(localStorage.getItem(PETS_POS) || "null"); } catch (e) {}
+      if (p && petsBox.classList.contains("open")) placePanel(p.x, p.y);
+    }
+    window.addEventListener("resize", restorePanel);
+    button("pets", "让它们动", function () {
+      var open = petsBox.classList.toggle("open");
+      buttons.pets.classList.toggle("on", open);
+      hint.style.visibility = open ? "hidden" : ""; // 面板打开时底部的操作提示先藏起来，不叠在一起
+      restorePanel();
+    });
     (params.get("do") || "").split(";").forEach(function (part) {
       var m = part.match(/^\s*(\w+)\s*[:：]\s*(.+)$/);
       var i = m ? PETS.findIndex(function (p) { return p.id === m[1]; }) : -1;
@@ -410,6 +488,7 @@
     window.HOUSE = house;
     window.TV = tv;
     window.CAMERA = camera;
+    window.CONTROLS = controls;
     window.HOUSE_SCENE = scene;
     window.PETS = pets; // 调试用：PETS[0].play("走2步")
     window.READY = true;

@@ -12,6 +12,7 @@
 //   var cals = await loadCalendars(key); // [{ src, owner, who, has, created_at, url, number, events, reminders, bad, plain }]，按 calendarSources 的顺序
 //   upcoming(cal) → { events: 今天及以后的日程（按时间排）, reminders: [{ text, date, days }]（今天及以后，按天数排） }
 import { decrypt } from "./lock.js";
+import { recentIssues } from "./gh-issues.js";
 
 var cfg = window.BOARD_CONFIG;
 var m = location.hostname.match(/^([^.]+)\.github\.io$/i);
@@ -118,21 +119,14 @@ export async function cachedCalendars(key) {
   } catch (e) { return null; }
 }
 
-// 翻最近的 issue（一般第一页就有，最多 3 页），每个来源找它最新的一条 [日历]。ETag 的思路同留言板
-export async function loadCalendars(key) {
+// 每个来源最新的一条 [日历]：从全站共用的最近帖子里找（gh-issues.js，不再单独问 GitHub）。opts.force：“刷新”按钮用
+export async function loadCalendars(key, opts) {
   var src = sources(), found = src.map(function () { return null; });
-  for (var page = 1; page <= 3 && found.some(function (f) { return !f; }); page++) {
-    var r = await fetch("https://api.github.com/repos/" + owner + "/" + repo + "/issues?state=open&sort=created&direction=desc&per_page=100&page=" + page,
-      { headers: { Accept: "application/vnd.github+json" }, cache: "no-cache" });
-    if (!r.ok) throw new Error("GitHub 返回 " + r.status + (r.status === 403 ? "（可能是访问太频繁，过一会儿再刷新）" : ""));
-    var list = await r.json();
-    list.forEach(function (it) {
-      if (it.pull_request || it.title.indexOf(PREFIX) !== 0) return;
-      var i = src.findIndex(function (s2) { return s2.login.toLowerCase() === String(it.user.login).toLowerCase(); });
-      if (i >= 0 && !found[i]) found[i] = { number: it.number, url: it.html_url, created_at: it.created_at, body: it.body };
-    });
-    if (list.length < 100) break;
-  }
+  (await recentIssues(opts)).forEach(function (it) {
+    if (it.pull_request || it.title.indexOf(PREFIX) !== 0) return;
+    var i = src.findIndex(function (s2) { return s2.login.toLowerCase() === String(it.user.login).toLowerCase(); });
+    if (i >= 0 && !found[i]) found[i] = { number: it.number, url: it.html_url, created_at: it.created_at, body: it.body };
+  });
   try { localStorage.setItem(CACHE_KEY, JSON.stringify(found)); } catch (e) {}
   return Promise.all(src.map(function (s2, i) { return toCal(key, s2, found[i]); }));
 }
