@@ -74,6 +74,8 @@
     import { loadParcels } from "./parcel-data.js";
     import { makeParcelBoxes } from "./parcel-boxes.js";
     import { startTravelAlbum } from "./travel-album.js";
+    import { getWeather } from "./weather-data.js";
+    import { makeWeatherBoard, weatherDetail, WEATHER_CSS } from "./weather-board.js";
 
     var params = new URLSearchParams(location.search);
     var canvas = document.getElementById("scene");
@@ -115,6 +117,20 @@
     scene.add(house.root);
     // 旅行相册（travel-album.js）：客厅电视随机放照片，客厅墙上挂相册的点亮地图
     var tv = startTravelAlbum(house);
+    // 玄关天气小屏：挂在玄关通往厨房那面墙上、门洞右边，显示明天的天气（weather-data.js），半小时重读一次
+    var weatherBoard = makeWeatherBoard({ width: 0.62 });
+    weatherBoard.group.position.set(0.8, 1.5, 0.15);
+    house.addItem(weatherBoard.group, { room: "entry", wall: "mid_kitchen_entry", interact: "weather" });
+    var weather = null, weatherError = "";
+    function refreshWeather() {
+      getWeather().then(function (w) { weather = w; weatherError = ""; weatherBoard.draw(w); },
+        function (e) { weatherError = e.message || "网络不通"; weatherBoard.draw(null, "没加载出来"); });
+    }
+    refreshWeather();
+    setInterval(refreshWeather, 30 * 60 * 1000);
+    var wxStyle = document.createElement("style");
+    wxStyle.textContent = WEATHER_CSS;
+    document.head.appendChild(wxStyle);
 
     // 待取件快递（Muse 最新一次 [快递] 留言里的）：玄关门口摆对应个数的快递盒（颜色按城市），点任意一个显示全部待取件
     var parcelGroup = null;
@@ -186,7 +202,7 @@
     });
     house.setView({ walls: params.get("walls") === "full" ? "full" : "low" });
     wallBtn.textContent = house.view.walls === "low" ? "内墙：矮" : "内墙：全高";
-    hint.textContent = "拖动旋转 · 滚轮/双指缩放 · 点电视、地图、电脑、留言板、快递盒试试 · 点门出门";
+    hint.textContent = "拖动旋转 · 滚轮/双指缩放 · 点电视、地图、天气、电脑、留言板、快递盒试试 · 点门出门";
 
     function resize() {
       renderer.setSize(window.innerWidth, window.innerHeight, false);
@@ -295,13 +311,14 @@
       else if (h.id === "board") open("<iframe src='board.html'></iframe>");
       else if (h.id === "parcel") open("<iframe src='parcels.html?view=list'></iframe>");
       else if (h.id === "tv") openTv();
+      else if (h.id === "weather") { content.innerHTML = ""; content.append(weatherDetail(weather, weatherError)); panel.classList.add("open"); }
       else if (h.id === "map") tv.state === "ok" || tv.state === "empty" ? openMap() : openTv();
       else if (NOTES[h.id]) open(NOTES[h.id]);
     });
     canvas.addEventListener("pointermove", function (e) {
       if (e.pointerType !== "mouse") return;
       var h = hit(e);
-      canvas.style.cursor = h && (h.id === "board" || h.id === "parcel" || h.id === "door" || h.id === "tv" || h.id === "map" || NOTES[h.id]) ? "pointer" : "";
+      canvas.style.cursor = h && (h.id === "board" || h.id === "parcel" || h.id === "door" || h.id === "tv" || h.id === "map" || h.id === "weather" || NOTES[h.id]) ? "pointer" : "";
     });
 
     // 动作面板：选一只，点按钮或者自己编一串（“走3步 跳1下 眨眼2次”）

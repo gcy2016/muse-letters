@@ -13,9 +13,18 @@
       font-size: 14px; white-space: nowrap; pointer-events: none;
     }
     #title { position: fixed; left: 16px; top: 12px; color: #fff; font-size: 22px; font-weight: 700; text-shadow: 0 1px 4px rgba(0,0,0,.35); pointer-events: none; }
+    #panel { position: fixed; inset: 0; display: none; background: rgba(20, 30, 40, 0.45); }
+    #panel.open { display: block; }
+    #panel .box { position: absolute; inset: 24px; max-width: 560px; margin: 0 auto; background: #fdf6f0; border-radius: 14px; overflow: hidden; box-shadow: 0 10px 40px rgba(0,0,0,.3); }
+    #content { position: absolute; inset: 0; overflow: auto; }
+    #close { position: absolute; right: 10px; top: 10px; z-index: 1; width: 36px; height: 36px; border-radius: 50%; border: none; background: #e0607e; color: #fff; font-size: 20px; cursor: pointer; }
+    #sky { position: fixed; right: 12px; top: 12px; display: flex; align-items: center; gap: 4px; padding: 4px 4px 4px 12px; border-radius: 20px; background: rgba(255,255,255,0.85); color: #5a4636; font-size: 13px; box-shadow: 0 1px 4px rgba(0,0,0,.12); }
+    #sky button { padding: 5px 11px; border: none; border-radius: 16px; background: transparent; color: #5a4636; font-size: 14px; cursor: pointer; }
+    #sky button.on { background: #5b8def; color: #fff; }
+    #sky button.empty { opacity: 0.55; }
     #fade { position: fixed; inset: 0; background: #f4efe8; opacity: 0; pointer-events: none; transition: opacity .6s; }
     #fade.on { opacity: 1; }
-    @media (max-width: 600px) { #hint { white-space: normal; text-align: center; width: max-content; max-width: calc(100% - 32px); } }
+    @media (max-width: 600px) { #panel .box { inset: 10px; } #hint { white-space: normal; text-align: center; width: max-content; max-width: calc(100% - 32px); } }
   </style>
   <script type="importmap">
     { "imports": { "three": "./lib/three.module.min.js" } }
@@ -24,7 +33,10 @@
 <body>
   <canvas id="scene"></canvas>
   <div id="title">噜噜岛</div>
+  <!-- 岛上的天空显示哪个城市明天的天气（weatherSources，在 config.js） -->
+  <div id="sky">天空<span></span></div>
   <div id="hint">拖动旋转 · 滚轮/双指缩放 · 点门进屋</div>
+  <div id="panel"><div class="box"><button id="close" type="button" aria-label="关闭">×</button><div id="content"></div></div></div>
   <div id="fade"></div>
   <script src="config.js"></script>
   <script type="module" src="island.js"></script>

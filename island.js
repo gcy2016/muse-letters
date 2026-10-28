@@ -1,12 +1,16 @@
 // 噜噜岛：岛上是噜噜之家（house.js），从外面看盖着屋顶。留言板在屋里（玄关）；
 // 点房子的门进屋（house.html，从玄关开始看）。门锁：这个浏览器开过锁，门就开着；没开过，点门先输密码。
 // 小岛单位是米，和房子一样。小miu 和 lulu 先只待在房子里。
-// ?from=house：从屋里出来，镜头停在门口
+// 天气：岛上的天空提前变成明天的天气（weather-fx.js），大门旁立一块天气牌（weather-board.js），数据见 weather-data.js
+// ?from=house：从屋里出来，镜头停在门口；?wx=小雨 用示例数据看某种天气的效果（?wx=demo 示例原样）
 import * as THREE from "three";
 import { OrbitControls } from "./lib/OrbitControls.js";
 import { loadHouse } from "./house.js";
 import { RoomEnvironment } from "./lib/RoomEnvironment.js";
 import { isUnlocked, unlock } from "./lock.js";
+import { getWeather, skyKind, skyPlace, sources as weatherSources } from "./weather-data.js";
+import { makeWeatherBoard, weatherDetail, WEATHER_CSS } from "./weather-board.js";
+import { makeWeatherFx } from "./weather-fx.js";
 
 var params = new URLSearchParams(location.search);
 var canvas = document.getElementById("scene");
@@ -28,7 +32,8 @@ controls.maxDistance = 70;
 controls.maxPolarAngle = Math.PI * 0.47; // 不钻到水下
 
 // 光
-scene.add(new THREE.HemisphereLight(0xffffff, 0x6aa0b0, 1.0));
+var hemi = new THREE.HemisphereLight(0xffffff, 0x6aa0b0, 1.0);
+scene.add(hemi);
 var sun = new THREE.DirectionalLight(0xfff2d6, 1.8);
 sun.position.set(14, 24, 12);
 sun.castShadow = true;
@@ -177,9 +182,60 @@ function cloud(x, y, z) {
 }
 var clouds = [cloud(-20, 16, -20), cloud(16, 19, -26), cloud(26, 14, 8)];
 
+// 天气：天空效果 + 大门左前方小路旁的天气牌，显示明天的天气；半小时重读一次。
+// 天空一次只显示一个城市（右上角按钮切换，选择记在本机）；天气牌上几个城市都显示
+// 房子单独打了环境光（见下面加载房子的地方），天暗下来时房子也跟着暗
+var houseEnv = 0.6, houseMats = [];
+function setHouseEnv() { houseMats.forEach(function (m) { m.envMapIntensity = houseEnv; }); }
+var fx = makeWeatherFx(scene, { hemi: hemi, sun: sun, clouds: clouds, makeCloud: cloud, radius: 24,
+  onChange: function (kind, look) { houseEnv = 0.6 * Math.min(1, (look.hemi + look.sun * 0.3) / 1.54); setHouseEnv(); } });
+var weatherBoard = makeWeatherBoard({ stand: true, width: 1.3, height: 1.25 });
+weatherBoard.group.position.set(-2.3, GROUND, 3.4);
+weatherBoard.group.rotation.y = 0.3;
+island.add(weatherBoard.group);
+var weather = null, weatherError = "";
+var SKY_KEY = "muse-weather-sky";
+var skySrc = (function () { try { return localStorage.getItem(SKY_KEY); } catch (e) { return null; } })() || (weatherSources()[0] || {}).id;
+var wxParam = params.get("wx");
+if (wxParam && wxParam !== "demo") skySrc = (weatherSources()[0] || {}).id; // ?wx=小雨 预览：示例里换的是第一个城市，天空临时显示它（不改记住的选择）
+var skyBar = document.getElementById("sky");
+weatherSources().forEach(function (src) {
+  var b = document.createElement("button");
+  b.type = "button"; b.textContent = src.city; b.dataset.id = src.id;
+  b.onclick = function () {
+    skySrc = src.id;
+    try { localStorage.setItem(SKY_KEY, skySrc); } catch (e) {}
+    showSky();
+  };
+  skyBar.appendChild(b);
+});
+if (weatherSources().length < 2) skyBar.style.display = "none";
+function showSky() {
+  var p = skyPlace(weather, skySrc);
+  fx.set(p ? skyKind(p.tomorrow) : "sun");
+  [].forEach.call(skyBar.querySelectorAll("button"), function (b) {
+    var has = !!(weather && weather.places.some(function (q) { return q.src === b.dataset.id; }));
+    b.classList.toggle("on", b.dataset.id === skySrc);
+    b.title = has ? "" : "还没有预报";
+    b.classList.toggle("empty", !has);
+  });
+}
+function refreshWeather() {
+  getWeather().then(function (w) {
+    weather = w; weatherError = "";
+    weatherBoard.draw(w);
+    showSky();
+  }).catch(function (e) {
+    weatherError = e.message || "网络不通";
+    weatherBoard.draw(null, "没加载出来");
+  });
+}
+refreshWeather();
+setInterval(refreshWeather, 30 * 60 * 1000);
+
 // 镜头：一开始在岛前方，能看到房子正面和门；从屋里出来时停在门口
 var hint = document.getElementById("hint");
-var HINT = "拖动旋转 · 滚轮/双指缩放 · 点门进屋";
+var HINT = "拖动旋转 · 滚轮/双指缩放 · 点门进屋 · 点天气牌看明天的天气";
 var goal = null;
 function look(target, az, el, dist, instant) {
   var pos = target.clone().add(new THREE.Vector3(Math.sin(az) * Math.cos(el), Math.sin(el), Math.cos(az) * Math.cos(el)).multiplyScalar(dist));
@@ -203,8 +259,9 @@ loadHouse(null, function (p) { hint.textContent = "房子加载中… " + Math.r
   // 房子的材质要有环境光才是原来的颜色（房屋页面也是这样打光的），只加在房子上，小岛本身不变
   var env = new THREE.PMREMGenerator(renderer).fromScene(new RoomEnvironment(renderer), 0.04).texture;
   house.root.traverse(function (o) {
-    if (o.isMesh) [].concat(o.material).forEach(function (m) { if (m.isMeshStandardMaterial && !m.envMap) { m.envMap = env; m.envMapIntensity = 0.6; } });
+    if (o.isMesh) [].concat(o.material).forEach(function (m) { if (m.isMeshStandardMaterial && !m.envMap) { m.envMap = env; houseMats.push(m); } });
   });
+  setHouseEnv();
   var plaque = housePlaque();
   plaque.position.set(house.doorPosition.x, 2.46, house.doorPosition.z - 0.6 + 0.09); // 前墙外表面上，门框顶（2.11 米）和墙顶之间
   house.root.add(plaque);
@@ -245,7 +302,20 @@ function enterHouse() {
   });
 }
 
-// 点击：门
+// 弹窗（天气详情）
+var panel = document.getElementById("panel"), content = document.getElementById("content");
+var wxStyle = document.createElement("style");
+wxStyle.textContent = WEATHER_CSS;
+document.head.appendChild(wxStyle);
+function openWeather() {
+  content.innerHTML = "";
+  content.append(weatherDetail(weather, weatherError));
+  panel.classList.add("open");
+}
+document.getElementById("close").onclick = function () { panel.classList.remove("open"); };
+panel.addEventListener("click", function (e) { if (e.target === panel) panel.classList.remove("open"); });
+
+// 点击：门、天气牌
 var raycaster = new THREE.Raycaster();
 var pointer = new THREE.Vector2();
 function hit(ev) {
@@ -253,8 +323,9 @@ function hit(ev) {
   pointer.x = ((ev.clientX - rect.left) / rect.width) * 2 - 1;
   pointer.y = -((ev.clientY - rect.top) / rect.height) * 2 + 1;
   raycaster.setFromCamera(pointer, camera);
+  if (raycaster.intersectObject(weatherBoard.group, true).length) return "weather";
   if (!doorHotspot) return null;
-  return raycaster.intersectObject(doorHotspot).length ? "door" : null; // 从外面只认门
+  return raycaster.intersectObject(doorHotspot).length ? "door" : null; // 房子从外面只认门
 }
 var down = null;
 canvas.addEventListener("pointerdown", function (e) { down = { x: e.clientX, y: e.clientY }; if (!entering) goal = null; });
@@ -265,6 +336,7 @@ canvas.addEventListener("pointerup", function (e) {
   if (moved >= 6) return; // 拖动旋转时不算点击
   var what = hit(e);
   if (what === "door") enterHouse();
+  else if (what === "weather") openWeather();
 });
 canvas.addEventListener("pointermove", function (e) {
   if (e.pointerType === "mouse") canvas.style.cursor = hit(e) ? "pointer" : "";
@@ -292,10 +364,11 @@ window.addEventListener("pageshow", function (e) {
   atDoor(true);
 });
 
-// 动画：云飘、海面起伏，门慢慢转
-var clock = new THREE.Clock();
+// 动画：云飘、海面起伏、雨雪，门慢慢转
+var clock = new THREE.Clock(), lastT = 0;
 renderer.setAnimationLoop(function () {
   var t = clock.getElapsedTime();
+  fx.update(t - lastT); lastT = t;
   clouds.forEach(function (c, i) { c.position.x += 0.004 * (i + 1); if (c.position.x > 50) c.position.x = -50; });
   water.position.y = Math.sin(t * 0.8) * 0.05;
   if (goal) {
