@@ -78,6 +78,9 @@
     import { startTravelAlbum } from "./travel-album.js";
     import { getWeather } from "./weather-data.js";
     import { makeWeatherBoard, weatherDetail, WEATHER_CSS } from "./weather-board.js";
+    import { loadCalendars } from "./calendar-data.js";
+    import { makeCalendarBoard } from "./calendar-board.js";
+    import { calendarDetail, CALENDAR_CSS } from "./calendar-detail.js";
     import { mountBoardButton, makeCorkNotes } from "./board-ui.js";
 
     var params = new URLSearchParams(location.search);
@@ -125,9 +128,12 @@
     // 留言板：右下角常驻按钮（有新留言亮红点）；玄关软木板上显示留言板网页的样子，每 10 分钟更新
     var boardUI = mountBoardButton();
     makeCorkNotes(house);
-    // 玄关天气小屏：挂在玄关通往厨房那面墙上、门洞右边，显示明天的天气（weather-data.js），半小时重读一次
+    // 玄关后墙（通往厨房那面）上的小屏：门洞右边挂天气、左边挂日历，每边上下两格（WALL_SLOTS 是高度），
+    // 先用上面一格，下面一格留给以后噜噜大王的天气、日历
+    var WALL_SLOTS = [2.15, 1.55];
+    // 天气小屏：显示明天的天气（weather-data.js），半小时重读一次
     var weatherBoard = makeWeatherBoard({ width: 0.62 });
-    weatherBoard.group.position.set(0.8, 1.5, 0.15);
+    weatherBoard.group.position.set(0.8, WALL_SLOTS[0], 0.15);
     house.addItem(weatherBoard.group, { room: "entry", wall: "mid_kitchen_entry", interact: "weather" });
     var weather = null, weatherError = "";
     function refreshWeather() {
@@ -137,8 +143,29 @@
     refreshWeather();
     setInterval(refreshWeather, 30 * 60 * 1000);
     var wxStyle = document.createElement("style");
-    wxStyle.textContent = WEATHER_CSS;
+    wxStyle.textContent = WEATHER_CSS + CALENDAR_CSS;
     document.head.appendChild(wxStyle);
+
+    // 日历小屏：门洞左边，每个来源（config.js 的 calendarSources）一块，从上往下排；左日程、右倒计时（calendar-data.js），
+    // 半小时重读一次（倒计时天数也跟着重算）
+    var calendars = null, calendarError = "";
+    var calendarBoards = (window.BOARD_CONFIG.calendarSources || []).slice(0, WALL_SLOTS.length).map(function (src, i) {
+      var b = makeCalendarBoard({ width: 0.62 });
+      b.group.position.set(-1.1, WALL_SLOTS[i], 0.15);
+      house.addItem(b.group, { room: "entry", wall: "mid_living_entry", interact: "calendar" + i });
+      return b;
+    });
+    function refreshCalendars() {
+      loadCalendars(key).then(function (cals) {
+        calendars = cals; calendarError = "";
+        calendarBoards.forEach(function (b, i) { b.draw(cals[i]); });
+      }, function (e) {
+        calendarError = e.message || "网络不通";
+        if (!calendars) calendarBoards.forEach(function (b) { b.draw(null, "没加载出来"); });
+      });
+    }
+    refreshCalendars();
+    setInterval(refreshCalendars, 30 * 60 * 1000);
 
     // 待取件快递（Muse 最新一次 [快递] 留言里的）：玄关门口摆对应个数的快递盒（颜色按城市），点任意一个显示全部待取件
     var parcelGroup = null;
@@ -210,7 +237,7 @@
     });
     house.setView({ walls: params.get("walls") === "full" ? "full" : "low" });
     wallBtn.textContent = house.view.walls === "low" ? "内墙：矮" : "内墙：全高";
-    hint.textContent = "拖动旋转 · 滚轮/双指缩放 · 点电视、地图、天气、电脑、留言板、快递盒试试 · 点门出门";
+    hint.textContent = "拖动旋转 · 滚轮/双指缩放 · 点电视、地图、天气、日历、电脑、留言板、快递盒试试 · 点门出门";
 
     function resize() {
       renderer.setSize(window.innerWidth, window.innerHeight, false);
@@ -319,6 +346,7 @@
       else if (h.id === "board") boardUI.open();
       else if (h.id === "parcel") open("<iframe src='parcels.html?view=list'></iframe>");
       else if (h.id === "tv") openTv();
+      else if (/^calendar/.test(h.id)) { content.innerHTML = ""; content.append(calendarDetail(calendars, calendarError)); panel.classList.add("open"); }
       else if (h.id === "weather") { content.innerHTML = ""; content.append(weatherDetail(weather, weatherError)); panel.classList.add("open"); }
       else if (h.id === "map") tv.state === "ok" || tv.state === "empty" ? openMap() : openTv();
       else if (NOTES[h.id]) open(NOTES[h.id]);
@@ -326,7 +354,7 @@
     canvas.addEventListener("pointermove", function (e) {
       if (e.pointerType !== "mouse") return;
       var h = hit(e);
-      canvas.style.cursor = h && (h.id === "board" || h.id === "parcel" || h.id === "door" || h.id === "tv" || h.id === "map" || h.id === "weather" || NOTES[h.id]) ? "pointer" : "";
+      canvas.style.cursor = h && (h.id === "board" || h.id === "parcel" || h.id === "door" || h.id === "tv" || h.id === "map" || h.id === "weather" || /^calendar/.test(h.id) || NOTES[h.id]) ? "pointer" : "";
     });
 
     // 动作面板：选一只，点按钮或者自己编一串（“走3步 跳1下 眨眼2次”）

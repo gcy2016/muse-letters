@@ -40,6 +40,13 @@ window.BOARD_CONFIG = {
     { id: "cq", city: "重庆", login: "gcy2016", who: "小miu" },
     { id: "wh", city: "武汉", login: "xy123646", who: "lulu" },
   ],
+  // 日历：Muse 读主人手机日历，发标题以 calendarPrefix 开头的 issue（日程 + 提醒，加密，格式见 calendar-data.js）。
+  // 按发帖账号分来源，每个来源只用最新一条；玄关门洞左边每个来源一块日历小屏（从上往下排，最多两块）。
+  // 以后 lulu 发噜噜大王的日历，加一行 { id: "dawang", owner: "噜噜大王", login: "xy123646", who: "lulu" } 即可。
+  calendarPrefix: "[日历]",
+  calendarSources: [
+    { id: "xiaobing", owner: "噜噜小兵", login: "gcy2016", who: "小miu" },
+  ],
   // 城市 → 快递盒颜色，对应关系固定；新城市加在这里。没列出的城市按名字从备用颜色里固定挑一个
   cityColors: {
     "重庆": "#e0533d",
