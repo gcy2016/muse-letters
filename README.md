@@ -11,7 +11,7 @@
   - 客厅电视和墙上的地图挂画连着旅行相册（`travel-album.js`）：电视随机放一张相册照片（进屋换一张，之后每 10 分钟换一张），挂画是相册“地图”页原样（点亮的省份，每 10 分钟重读）。直接调用相册 `album/js/` 里的模块（解密、读云端、算点亮、画地图），改相册的 `config.js`、`store-cos.js`、`album.js`、`views.js` 时，这些函数的名字或用法变了，`travel-album.js` 要跟着改。登录：相册在这台设备勾过“记住此设备”就直接能用；没勾过点电视或挂画输一次相册密码，记在相册的 IndexedDB 里（键名 `muse-tv`），不影响相册页面。只读，不改相册。
   - 屋顶在 `tools/build_house.py` 里一起生成，`house.setView({ exterior: true })` 时显示（从外面看），`house.setDoor(true)` 开门。
   - 放进别的场景用 `house.js`：`loadHouse()` 加载，`update(camera)` 自动藏挡视线的墙，还有房间范围 `rooms`、角色位置点 `spots`、碰撞框 `colliders`、可点的东西 `pick()`（电脑、留言板、门、电视、沙发、床）。用法写在 `house.js` 开头。
-  - 房间里的小miu 和 lulu 是带骨骼的精细模型（`assets/miu-avatar/miu.glb`、`assets/lulu-avatar/lulu.glb`，由混元生成的模型修好、简化、绑骨、压缩而来，流程写在 `tools/fix_avatar.py` 开头）。动作由 `pet.js` 用代码实时摆骨头：走、跳、眨眼、摇尾巴、转头、点头、转身、伸懒腰，步数次数随便定，默认自由活动。页面上点“让它们动”可以指挥，也能自己编一串（`走3步 跳1下 眨眼2次`）；给 Muse 用的网址：`house.html?do=miu:走2步 跳2下;lulu:眨眼2次`，加 `&free=0` 关掉自由活动。
+  - 房间里的小miu 和 lulu 是带骨骼的精细模型（`assets/miu-avatar/miu.glb`、`assets/lulu-avatar/lulu.glb`，由混元生成的模型修好、简化、绑骨、再减面压缩而来（小miu 2.4 MB、lulu 0.9 MB），流程写在 `tools/fix_avatar.py` 开头）。动作由 `pet.js` 用代码实时摆骨头：走、跳、眨眼、摇尾巴、转头、点头、转身、伸懒腰，步数次数随便定，默认自由活动。页面上点“让它们动”可以指挥，也能自己编一串（`走3步 跳1下 眨眼2次`）；给 Muse 用的网址：`house.html?do=miu:走2步 跳2下;lulu:眨眼2次`，加 `&free=0` 关掉自由活动。
 
 - 大门锁 `lock.js`：房屋 `house.html` 和快递页面 `parcels.html` 要先输密码才能进。密码配置在 `config.js` 的 `lock`（只存校验值，不存明文）；改密码运行 `node tools/make_lock.mjs 新密码`，把输出换进去。本机输对一次后会记住。开锁的同时也就有了解开快递留言的密钥。
 - 待取件快递 `parcels.html`：Muse 每天把当天全部待取件按格式写好（每件以【城市】开头，下面写取件码、取件地址、物品；格式见 `parcel-data.js` 开头），粘贴进页面的输入框点“加密并留言”，页面用大门锁密码加密后打开填好的 GitHub 新建 issue 页面（标题以 `[快递]` 开头），点 Create 发出。GitHub 上只有密文，开锁后页面和房屋才解得开。永远只显示最新一条，旧的自动不再显示，不用去关。房屋玄关按件数摆一样大的快递盒，一摞最多 5 个，摞满了另起一摞；点任意一个盒子显示全部待取件。盒子颜色按城市固定：`config.js` 的 `cityColors`（重庆红、武汉蓝），没列出的城市按名字固定挑一个备用颜色。

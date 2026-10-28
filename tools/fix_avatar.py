@@ -6,7 +6,9 @@
 #   1. python tools/fix_avatar.py 原始.glb fixed.glb [--lulu]
 #   2. gltf-transform weld fixed.glb weld.glb && gltf-transform simplify weld.glb simp.glb --ratio 0.045 --error 0.002
 #   3. python tools/rig_avatar.py simp.glb rig.glb lulu|miu
-#   4. gltf-transform webp rig.glb webp.glb --quality 85 && gltf-transform meshopt webp.glb out.glb --level medium
+#   4. gltfpack -i rig.glb -o lo.glb -si 0.4 -noq -kn -km（lulu 0.4 → 约 2.5 万面；小miu 0.5 → 约 7.9 万面，毛刺多再减就卡在贴图接缝上，
+#      加 -sp/-sa 硬减会把贴图坐标搅花，不能用）
+#   5. gltf-transform webp lo.glb webp.glb --quality 85 && gltf-transform meshopt webp.glb out.glb --level medium
 import sys, json, struct
 import numpy as np
 from scipy.sparse import coo_matrix
