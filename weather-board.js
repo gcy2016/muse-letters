@@ -146,10 +146,10 @@ export function makeWeatherBoard(opts) {
       drawIcon(g, skyKind(d), cx, 270, size);
       g.textAlign = "center";
       g.font = "bold " + (n === 1 ? 92 : 80) + "px 'PingFang SC','Microsoft YaHei',sans-serif";
-      g.fillText(temp(d) || (d && d.text) || "—", cx, 455);
+      fitText(g, temp(d) || (d && d.text) || "—", cx, 455, colW - 40, n === 1 ? 92 : 80, "bold ");
       g.font = "48px 'PingFang SC','Microsoft YaHei',sans-serif";
       var sub = [p.name, d && d.rain !== null ? "降水" + d.rain + "%" : ""].filter(Boolean).join(" · ");
-      g.fillText(sub, cx, 545);
+      fitText(g, sub, cx, 545, colW - 40, 48);
       if (p.stale) { g.fillStyle = "#ffe08a"; g.font = "40px 'PingFang SC','Microsoft YaHei',sans-serif"; g.fillText("预报已过期", cx, 600); g.fillStyle = "#ffffff"; }
       if (n > 1 && i > 0) { g.fillStyle = "rgba(255,255,255,0.35)"; g.fillRect(colW * i - 2, 120, 4, H - 160); g.fillStyle = "#ffffff"; }
     });
@@ -157,6 +157,13 @@ export function makeWeatherBoard(opts) {
   }
   draw(null, "加载中…");
   return { group: group, draw: draw };
+}
+
+// 一行字放不下就把字号缩小，不挤出格子（地点名可能写得很长，比如“重庆·两江新区”）
+function fitText(g, text, x, y, maxW, size, weight) {
+  var px = size;
+  do { g.font = (weight || "") + px + "px 'PingFang SC','Microsoft YaHei',sans-serif"; px -= 2; } while (g.measureText(text).width > maxW && px > 20);
+  g.fillText(text, x, y);
 }
 
 // ---------- 弹窗详情 ----------
