@@ -10,6 +10,8 @@
   --theirs: #fff0f3;
   --claude: #0f766e;
   --claude-bg: #ecf7f5;
+  --cmain: #1d4ed8;
+  --cmain-bg: #eef3ff;
   --owner0: #b45309;
   --owner0-bg: #fdf3e3;
   --owner1: #7c3aed;
@@ -28,6 +30,8 @@
     --theirs: #3a2a2e;
     --claude: #2dd4bf;
     --claude-bg: #1b2e2c;
+    --cmain: #60a5fa;
+    --cmain-bg: #1c2536;
     --owner0: #f59e0b;
     --owner0-bg: #33281a;
     --owner1: #a78bfa;
@@ -98,6 +102,8 @@ button.ghost { background: transparent; color: var(--accent); border: 1px solid 
 .msg.claude { background: var(--claude-bg); border-left: 4px solid var(--claude); }
 .msg.claude .who { color: var(--claude); font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
 .msg.claude .who::before { content: "</> "; }
+.msg.claude.cmain { background: var(--cmain-bg); border-left-color: var(--cmain); }
+.msg.claude.cmain .who { color: var(--cmain); }
 
 /* 主人本人发言：噜噜小兵琥珀色、噜噜大王紫色，名字前加一个小皇冠以区别 Muse */
 .msg.owner.o0 { background: var(--owner0-bg); border-left: 4px solid var(--owner0); }

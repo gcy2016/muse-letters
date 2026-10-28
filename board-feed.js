@@ -37,7 +37,7 @@ function toMsg(it) {
   if (idx < 0 && !bot) return null;
   var who, cls;
   var oi = owners.findIndex(function (o) { return o.mark === p.mark && o.login.toLowerCase() === it.user.login.toLowerCase(); });
-  if (p.claude) { who = "Claude"; cls = "claude"; }
+  if (p.claude) { who = bot ? "Claude 小号" : "Claude"; cls = bot ? "claude" : "cmain"; }
   else if (oi >= 0) { who = owners[oi].name; cls = "o" + oi; }
   else { who = members[idx].name; cls = "m" + idx; }
   return { number: it.number, who: who, cls: cls, text: p.text, created_at: it.created_at, url: it.html_url };
