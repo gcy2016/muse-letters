@@ -126,46 +126,53 @@ for (var s = 0; s < 7; s++) {
   island.add(st);
 }
 
-// 木牌的木头纹理和文字（岛名牌、门上的牌子用）
-function textTexture(text, w, h, font) {
+// 岛上的两块名牌：“噜噜岛”和“噜噜之家”，同一种风格（亮黄底、白描边、深棕粗字，侧边和柱帽用屋顶的珊瑚色），
+// 噜噜之家是主牌，更亮、字更大。按 #91 小miu 的建议：底色明亮，和字、草地、白墙都拉开反差
+function signTexture(text, w, h, font, bg) {
   var c = document.createElement("canvas");
-  c.width = w || 512; c.height = h || 256;
-  var ctx = c.getContext("2d");
-  var W = c.width, H = c.height;
-  ctx.fillStyle = "#c8915a"; ctx.fillRect(0, 0, W, H);
-  ctx.strokeStyle = "#8a5a32"; ctx.lineWidth = 8;
-  for (var y = 40; y < H; y += 60) { ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y + 6); ctx.globalAlpha = 0.25; ctx.stroke(); }
-  ctx.globalAlpha = 1; ctx.lineWidth = 14; ctx.strokeRect(7, 7, W - 14, H - 14);
-  ctx.fillStyle = "#4a2c14";
-  ctx.font = "bold " + (font || 110) + "px 'PingFang SC','Microsoft YaHei',sans-serif";
-  ctx.textAlign = "center"; ctx.textBaseline = "middle";
-  ctx.fillText(text, W / 2, H / 2 + 6);
+  c.width = w; c.height = h;
+  var g = c.getContext("2d");
+  g.fillStyle = bg; g.fillRect(0, 0, w, h);
+  var r = h * 0.16, m = h * 0.07; // 白色圆角描边
+  g.strokeStyle = "#ffffff"; g.lineWidth = h * 0.045;
+  g.beginPath(); g.moveTo(m + r, m); g.arcTo(w - m, m, w - m, h - m, r); g.arcTo(w - m, h - m, m, h - m, r); g.arcTo(m, h - m, m, m, r); g.arcTo(m, m, w - m, m, r); g.closePath(); g.stroke();
+  g.font = "900 " + font + "px 'PingFang SC','Microsoft YaHei',sans-serif";
+  g.textAlign = "center"; g.textBaseline = "middle";
+  g.lineJoin = "round"; g.lineWidth = font * 0.08; g.strokeStyle = "rgba(255,255,255,0.9)"; // 字外一圈浅色，远看更清楚
+  g.strokeText(text, w / 2, h / 2 + font * 0.05);
+  g.fillStyle = "#4a2208";
+  g.fillText(text, w / 2, h / 2 + font * 0.05);
   var t = new THREE.CanvasTexture(c);
   t.colorSpace = THREE.SRGBColorSpace;
   return t;
 }
-var postMat = mat(0x7a4f2e);
+var signPost = mat(0xfff8ee), signEdge = mat(0xe5836f);
+// 两根柱子撑一块牌子：w、h 是牌面大小，top 是牌子上沿离地多高
+function makeSign(text, w, h, top, font, bg) {
+  var g = new THREE.Group();
+  var y = top - h / 2, px = w / 2 - 0.12;
+  [-px, px].forEach(function (x) {
+    g.add(mesh(new THREE.BoxGeometry(0.14, top + 0.12, 0.14), signPost, x, (top + 0.12) / 2, -0.02));
+    g.add(mesh(new THREE.ConeGeometry(0.16, 0.3, 4), signEdge, x, top + 0.27, -0.02)); // 柱顶小尖帽
+  });
+  var face = new THREE.MeshStandardMaterial({ map: signTexture(text, 1024, Math.round(1024 * h / w), font, bg), roughness: 0.6, emissive: 0xffffff, emissiveIntensity: 0.4 }); // 自发光一点：背光、阴天时黄色也不发暗
+  face.emissiveMap = face.map;
+  g.add(mesh(new THREE.BoxGeometry(w, h, 0.12), [signEdge, signEdge, signEdge, signEdge, face, signEdge], 0, y, 0.04));
+  return g;
+}
 
-// 岛名牌“噜噜岛”：立在小路起点、靠沙滩的地方，一进来就能看到
-var nameSign = new THREE.Group();
-nameSign.add(mesh(new THREE.BoxGeometry(0.2, 2.6, 0.2), postMat, -1.5, 1.3, 0));
-nameSign.add(mesh(new THREE.BoxGeometry(0.2, 2.6, 0.2), postMat, 1.5, 1.3, 0));
-nameSign.add(mesh(new THREE.BoxGeometry(3.6, 1.3, 0.16), [postMat, postMat, postMat, postMat,
-  new THREE.MeshStandardMaterial({ map: textTexture("噜噜岛", 640, 232, 130), roughness: 0.9 }), postMat], 0, 2.05, 0.04));
-nameSign.add(mesh(new THREE.ConeGeometry(0.22, 0.4, 4), mat(0xe5836f), -1.5, 2.8, 0)); // 柱顶小尖帽
-nameSign.add(mesh(new THREE.ConeGeometry(0.22, 0.4, 4), mat(0xe5836f), 1.5, 2.8, 0));
+// 岛名牌“噜噜岛”：立在小路起点、靠沙滩的地方，一进来就能看到（稍柔和的一级）
+var nameSign = makeSign("噜噜岛", 3.2, 1.15, 2.6, 260, "#ffe17a");
 nameSign.position.set(-3.4, GROUND, 11.5);
 nameSign.rotation.y = 0.25;
 island.add(nameSign);
 
-// 房子正面大门上方的牌子“噜噜之家”（房子加载好后挂到房子上）
-function housePlaque() {
-  var g = new THREE.Group();
-  var wood = mat(0x7a4f2e);
-  g.add(mesh(new THREE.BoxGeometry(1.9, 0.56, 0.06), [wood, wood, wood, wood,
-    new THREE.MeshStandardMaterial({ map: textTexture("噜噜之家", 640, 190, 120), roughness: 0.9 }), wood], 0, 0, 0.03));
-  return g;
-}
+// 房子的名牌“噜噜之家”：房子左前角的立牌（主牌，更亮更大）。不挂在屋檐下（挡视线），也不放门的右前方
+// （从屋里出来时镜头在门的右前方，放那儿会挡住门）
+var homeSign = makeSign("噜噜之家", 3.0, 1.05, 2.45, 280, "#ffc933");
+homeSign.position.set(-5.4, GROUND, 2.4);
+homeSign.rotation.y = 0.35;
+island.add(homeSign);
 
 // 云
 function cloud(x, y, z) {
@@ -263,9 +270,6 @@ loadHouse(null, function (p) { hint.textContent = "房子加载中… " + Math.r
     if (o.isMesh) [].concat(o.material).forEach(function (m) { if (m.isMeshStandardMaterial && !m.envMap) { m.envMap = env; houseMats.push(m); } });
   });
   setHouseEnv();
-  var plaque = housePlaque();
-  plaque.position.set(house.doorPosition.x, 2.46, house.doorPosition.z - 0.6 + 0.09); // 前墙外表面上，门框顶（2.11 米）和墙顶之间
-  house.root.add(plaque);
   // 门口的点击区（看不见）：门开着时门扇转进屋里了，点门洞也要算点门
   doorHotspot = new THREE.Mesh(new THREE.BoxGeometry(1.1, 2.2, 0.6), new THREE.MeshBasicMaterial({ visible: false }));
   doorHotspot.position.set(house.doorPosition.x, 1.1, house.doorPosition.z - 0.6);
