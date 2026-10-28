@@ -126,53 +126,99 @@ for (var s = 0; s < 7; s++) {
   island.add(st);
 }
 
-// 岛上的两块名牌：“噜噜岛”和“噜噜之家”，同一种风格（亮黄底、白描边、深棕粗字，侧边和柱帽用屋顶的珊瑚色），
-// 噜噜之家是主牌，更亮、字更大。按 #91 小miu 的建议：底色明亮，和字、草地、白墙都拉开反差
-function signTexture(text, w, h, font, bg) {
-  var c = document.createElement("canvas");
-  c.width = w; c.height = h;
-  var g = c.getContext("2d");
-  g.fillStyle = bg; g.fillRect(0, 0, w, h);
-  var r = h * 0.16, m = h * 0.07; // 白色圆角描边
-  g.strokeStyle = "#ffffff"; g.lineWidth = h * 0.045;
-  g.beginPath(); g.moveTo(m + r, m); g.arcTo(w - m, m, w - m, h - m, r); g.arcTo(w - m, h - m, m, h - m, r); g.arcTo(m, h - m, m, m, r); g.arcTo(m, m, w - m, m, r); g.closePath(); g.stroke();
-  g.font = "900 " + font + "px 'PingFang SC','Microsoft YaHei',sans-serif";
-  g.textAlign = "center"; g.textBaseline = "middle";
-  g.lineJoin = "round"; g.lineWidth = font * 0.08; g.strokeStyle = "rgba(255,255,255,0.9)"; // 字外一圈浅色，远看更清楚
-  g.strokeText(text, w / 2, h / 2 + font * 0.05);
-  g.fillStyle = "#4a2208";
-  g.fillText(text, w / 2, h / 2 + font * 0.05);
-  var t = new THREE.CanvasTexture(c);
+// 岛上的两块名牌：牌面用 GPT 画的图（assets/island/，白底已抠掉）
+//   “噜噜岛”：小路左边的立牌，两根木柱绑绳、底下压石头；“噜噜之家”：挂在门左边的墙上；门右边的墙上挂一盏煤油灯。
+//   门两边各留出 0.8 米左右的空墙，过年贴对联用（门框外沿 x≈-0.64 和 0.34，墙面在 z=1）
+var texLoader = new THREE.TextureLoader();
+function cutout(url, w, h, z, opts) {
+  var t = texLoader.load(url);
   t.colorSpace = THREE.SRGBColorSpace;
-  return t;
+  t.anisotropy = 4;
+  // 自发光一点：背光、阴天时牌子也不发暗
+  var m = new THREE.MeshStandardMaterial(Object.assign({ map: t, emissive: 0xffffff, emissiveMap: t, emissiveIntensity: 0.3, alphaTest: 0.5, roughness: 0.8 }, opts));
+  var p = new THREE.Mesh(new THREE.PlaneGeometry(w, h), m);
+  p.position.z = z;
+  p.castShadow = true;
+  return p;
 }
-var signPost = mat(0xfff8ee), signEdge = mat(0xe5836f);
-// 两根柱子撑一块牌子：w、h 是牌面大小，top 是牌子上沿离地多高
-function makeSign(text, w, h, top, font, bg) {
+// 同一张图叠几层木色的片，看起来有厚度（侧面和背面是木头）
+function thickBoard(url, w, h, depth, layers) {
   var g = new THREE.Group();
-  var y = top - h / 2, px = w / 2 - 0.12;
-  [-px, px].forEach(function (x) {
-    g.add(mesh(new THREE.BoxGeometry(0.14, top + 0.12, 0.14), signPost, x, (top + 0.12) / 2, -0.02));
-    g.add(mesh(new THREE.ConeGeometry(0.16, 0.3, 4), signEdge, x, top + 0.27, -0.02)); // 柱顶小尖帽
-  });
-  var face = new THREE.MeshStandardMaterial({ map: signTexture(text, 1024, Math.round(1024 * h / w), font, bg), roughness: 0.6, emissive: 0xffffff, emissiveIntensity: 0.4 }); // 自发光一点：背光、阴天时黄色也不发暗
-  face.emissiveMap = face.map;
-  g.add(mesh(new THREE.BoxGeometry(w, h, 0.12), [signEdge, signEdge, signEdge, signEdge, face, signEdge], 0, y, 0.04));
+  g.add(cutout(url, w, h, depth / 2));
+  var wood = cutout(url, w, h, 0, { color: 0xb07a3c, emissive: 0x000000, emissiveMap: null, side: THREE.DoubleSide });
+  for (var i = 1; i <= layers; i++) {
+    var l = wood.clone();
+    l.position.z = depth / 2 - (depth * i) / layers;
+    g.add(l);
+  }
   return g;
 }
 
-// 岛名牌“噜噜岛”：立在小路起点、靠沙滩的地方，一进来就能看到（稍柔和的一级）
-var nameSign = makeSign("噜噜岛", 3.2, 1.15, 2.6, 260, "#ffe17a");
-nameSign.position.set(-3.4, GROUND, 11.5);
+// “噜噜岛”立牌：牌面 3.4 米宽，上沿离地 3.1 米。两根柱子的位置对着图上柱子的位置（图宽的 23% 和 81% 处）
+var nameSign = new THREE.Group();
+(function () {
+  var W = 3.4, H = W * 441 / 787, top = 3.1;
+  var board = thickBoard("assets/island/island-sign.webp", W, H, 0.1, 5);
+  board.position.y = top - H / 2;
+  nameSign.add(board);
+  var post = mat(0xc98f4e), rope = mat(0xf0e2bf), stone = mat(0x8f8a84), grass = mat(0x5fae4a);
+  [0.23, 0.81].forEach(function (f, i) {
+    var x = (f - 0.5) * W;
+    nameSign.add(mesh(new THREE.BoxGeometry(0.17, top - 0.2, 0.15), post, x, (top - 0.2) / 2, -0.11));
+    [0.32, 0.42].forEach(function (y) { nameSign.add(mesh(new THREE.CylinderGeometry(0.125, 0.125, 0.08, 10), rope, x, y, -0.11)); }); // 绑绳
+    // 柱脚压几块石头、长几簇草
+    [[-0.2, 0.05, 0.28], [0.18, 0.12, 0.24], [0.02, -0.25, 0.2]].forEach(function (r, k) {
+      var st = mesh(new THREE.DodecahedronGeometry(r[2], 0), stone, x + r[0], r[2] * 0.45, -0.11 + r[1]);
+      st.rotation.set(k, i + k * 2, 0);
+      nameSign.add(st);
+    });
+    [[-0.35, 0.12], [0.3, -0.05], [0.12, 0.3]].forEach(function (q, k) {
+      var gr = mesh(new THREE.ConeGeometry(0.07, 0.3, 4), grass, x + q[0], 0.15, -0.11 + q[1]);
+      gr.rotation.z = (k - 1) * 0.3;
+      nameSign.add(gr);
+    });
+  });
+})();
+nameSign.position.set(-4, GROUND, 11.8); // 靠岛边、小路起点左边，离房子远一点
 nameSign.rotation.y = 0.25;
 island.add(nameSign);
 
-// 房子的名牌“噜噜之家”：房子左前角的立牌（主牌，更亮更大）。不挂在屋檐下（挡视线），也不放门的右前方
-// （从屋里出来时镜头在门的右前方，放那儿会挡住门）
-var homeSign = makeSign("噜噜之家", 3.0, 1.05, 2.45, 280, "#ffc933");
-homeSign.position.set(-5.4, GROUND, 2.4);
-homeSign.rotation.y = 0.35;
+// “噜噜之家”门牌：挂在门左边的墙上，和窗户差不多高；右边离门框 0.85 米，留着贴对联
+var homeSign = thickBoard("assets/island/home-plaque.webp", 1.1, 1.1 * 381 / 571, 0.04, 2);
+homeSign.position.set(-2.06, GROUND + 1.9, 1.03);
 island.add(homeSign);
+
+// 煤油灯：挂在门右边的墙上，铁架子伸出来吊一盏玻璃灯，灯罩里暖黄的光；左边离门框 0.85 米，同样留着贴对联
+var lamp = new THREE.Group();
+(function () {
+  var iron = mat(0x3b342e, { roughness: 0.6 }), brass = mat(0xc8954a, { roughness: 0.5, metalness: 0.3 });
+  lamp.add(mesh(new THREE.BoxGeometry(0.12, 0.24, 0.03), iron, 0, 0.1, 0));             // 墙上的底板
+  lamp.add(mesh(new THREE.BoxGeometry(0.035, 0.035, 0.26), iron, 0, 0.2, 0.13));        // 伸出来的横杆
+  var brace = mesh(new THREE.BoxGeometry(0.025, 0.2, 0.025), iron, 0, 0.1, 0.07);         // 斜撑
+  brace.rotation.x = 0.75;
+  lamp.add(brace);
+  var hang = new THREE.Group();
+  hang.position.set(0, 0.2, 0.24);
+  lamp.add(hang);
+  var ring = mesh(new THREE.TorusGeometry(0.035, 0.008, 6, 12), iron, 0, -0.04, 0);
+  hang.add(ring);
+  hang.add(mesh(new THREE.ConeGeometry(0.1, 0.09, 6), iron, 0, -0.11, 0));              // 灯帽
+  hang.add(mesh(new THREE.CylinderGeometry(0.085, 0.085, 0.02, 6), brass, 0, -0.16, 0));
+  var glass = mesh(new THREE.CylinderGeometry(0.07, 0.06, 0.17, 6), new THREE.MeshStandardMaterial({ color: 0xffe6a0, emissive: 0xffb84a, emissiveIntensity: 1.6, roughness: 0.3, flatShading: true }), 0, -0.255, 0);
+  glass.castShadow = false;
+  hang.add(glass);
+  [0, 1, 2, 3, 4, 5].forEach(function (k) {                                              // 灯罩外的铁条
+    var a = (k / 6) * Math.PI * 2 + Math.PI / 6;
+    hang.add(mesh(new THREE.BoxGeometry(0.012, 0.18, 0.012), iron, Math.cos(a) * 0.072, -0.255, Math.sin(a) * 0.072));
+  });
+  hang.add(mesh(new THREE.CylinderGeometry(0.08, 0.09, 0.05, 6), brass, 0, -0.365, 0)); // 油壶底座
+  var glow = new THREE.PointLight(0xffb45a, 1.2, 3.5, 2);
+  glow.position.set(0, -0.26, 0.05);
+  hang.add(glow);
+})();
+lamp.position.set(1.2, GROUND + 1.95, 1.0);
+lamp.scale.setScalar(1.4);
+island.add(lamp);
 
 // 云
 function cloud(x, y, z) {
