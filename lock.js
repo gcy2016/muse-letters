@@ -6,6 +6,7 @@
 //   if (await isUnlocked()) ...        // 只查本机开过锁没有，不弹框
 //   var text = await encrypt(key, obj); // "ENC1.<iv>.<密文>"
 //   var obj = await decrypt(key, text); // 解不开（密码改过、内容坏了）返回 null
+//   var bin = await encryptBytes(key, bytes); var bytes = await decryptBytes(key, bin); // 整个文件（照片等）
 // 改密码：node tools/make_lock.mjs 新密码，把输出的几行换进 config.js 的 lock。改密码后旧的快递留言解不开，Muse 重新留一条就好。
 
 var cfg = window.BOARD_CONFIG.lock;
@@ -91,6 +92,22 @@ export async function encrypt(key, obj) {
   var iv = crypto.getRandomValues(new Uint8Array(12));
   var data = await crypto.subtle.encrypt({ name: "AES-GCM", iv: iv }, key, enc.encode(JSON.stringify(obj)));
   return "ENC1." + b64(iv) + "." + b64(data);
+}
+
+// 加密 / 解密整个文件（照片等）：格式是 4 字节 "ENCB" + 12 字节 iv + 密文。解不开返回 null
+var BIN_MAGIC = [69, 78, 67, 66]; // "ENCB"
+export async function encryptBytes(key, bytes) {
+  var iv = crypto.getRandomValues(new Uint8Array(12));
+  var data = new Uint8Array(await crypto.subtle.encrypt({ name: "AES-GCM", iv: iv }, key, bytes));
+  var out = new Uint8Array(16 + data.length);
+  out.set(BIN_MAGIC, 0); out.set(iv, 4); out.set(data, 16);
+  return out;
+}
+export async function decryptBytes(key, buffer) {
+  var b = new Uint8Array(buffer);
+  if (b.length < 17 || BIN_MAGIC.some(function (v, i) { return b[i] !== v; })) return null;
+  try { return new Uint8Array(await crypto.subtle.decrypt({ name: "AES-GCM", iv: b.slice(4, 16) }, key, b.slice(16))); }
+  catch (e) { return null; }
 }
 
 export async function decrypt(key, text) {

@@ -13,14 +13,15 @@
 //   album.next()       // 电视马上换一张
 //   album.retry()      // 出错后重来
 import * as THREE from "three";
+import { HOUSE as HOUSE_LAYOUT, placeInHouse } from "./layout.js";
 
 var ALBUM = new URL("./album/", import.meta.url).href; // 旅行相册网页
 var INTERVAL = 10 * 60 * 1000;
 var KEY = "muse-tv"; // 存在相册的 IndexedDB 里，相册自己不用这个名字
 var TV_W = 1024, TV_H = 576;   // 电视屏幕 16:9
 var MAP_W = 1600, MAP_H = 1100; // 地图挂画
-// 地图挂画挂在客厅和书房之间那面墙的客厅一侧（房子坐标，米）：转到房子后面朝前看时才看得到
-var POSTER = { x: -2.6, y: 1.55, z: -0.012, w: 2.0, wall: "mid_living_study", room: "living" };
+// 地图挂画的位置、大小在 layout.js（布置表）的 travelMap
+var POSTER = HOUSE_LAYOUT.travelMap;
 
 export function startTravelAlbum(house) {
   var album = { state: "loading", photo: null, map: null, error: "", albumUrl: ALBUM, mapUrl: ALBUM + "#/map",
@@ -167,7 +168,7 @@ export function startTravelAlbum(house) {
 
   drawText(tv, ["旅行相册", "加载中…"]);
   drawText(poster, ["旅行地图", "加载中…"]);
-  house.addItem(poster.group, { room: POSTER.room, wall: POSTER.wall, interact: "map" });
+  placeInHouse(house, poster.group, POSTER, "map");
   boot();
   return album;
 }
@@ -202,19 +203,17 @@ function makeScreen(mesh, w, h, glb) {
   return { canvas: canvas, ctx: canvas.getContext("2d"), texture: texture, w: w, h: h };
 }
 
-// 地图挂画：木框 + 画面，挂在墙上，画面朝客厅（-z）
+// 地图挂画：木框 + 画面，正面朝 +z（挂在哪、朝哪边见 layout.js 的 travelMap）
 function makePoster() {
   var s = makeScreen(null, MAP_W, MAP_H);
   var g = new THREE.Group();
   g.name = "travel_map_poster";
-  var ph = POSTER.w * MAP_H / MAP_W;
-  var frame = new THREE.Mesh(new THREE.BoxGeometry(POSTER.w + 0.1, ph + 0.1, 0.04), new THREE.MeshStandardMaterial({ color: 0xe3ac6c, roughness: 0.8 }));
-  frame.position.z = -0.02;
-  var pic = new THREE.Mesh(new THREE.PlaneGeometry(POSTER.w, ph), new THREE.MeshStandardMaterial({ map: s.texture, roughness: 0.9 }));
-  pic.position.z = -0.041;
-  pic.rotation.y = Math.PI; // 平面默认朝 +z，转过来朝客厅
+  var ph = POSTER.width * MAP_H / MAP_W;
+  var frame = new THREE.Mesh(new THREE.BoxGeometry(POSTER.width + 0.1, ph + 0.1, 0.04), new THREE.MeshStandardMaterial({ color: 0xe3ac6c, roughness: 0.8 }));
+  frame.position.z = 0.02;
+  var pic = new THREE.Mesh(new THREE.PlaneGeometry(POSTER.width, ph), new THREE.MeshStandardMaterial({ map: s.texture, roughness: 0.9 }));
+  pic.position.z = 0.041; // 正面朝 +z，挂到墙上朝哪边由布置表的 facing 决定
   g.add(frame, pic);
-  g.position.set(POSTER.x, POSTER.y, POSTER.z);
   s.group = g;
   return s;
 }

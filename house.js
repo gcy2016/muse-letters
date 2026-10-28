@@ -13,7 +13,9 @@
 //   house.setView({ exterior: true })  // 从外面看：盖上屋顶、墙全部立起来（放进小岛等外部场景时用）；false 回到剖开看
 //   house.setDoor(true)                // 入户门开 / 关（会慢慢转过去）；house.doorOpen 是当前目标状态
 //   house.doorPosition                 // 入户门外侧台阶上的一点（房子坐标），镜头对准门用
-//   house.addItem(obj, { room, wall, interact }) // 往房子里加东西（房子坐标）：跟着房间显示/隐藏；挂在墙上的（wall 是墙的编号）墙被削矮时一起藏起来；interact 是点它时 pick 返回的 id
+//   house.addItem(obj, { auto: true, interact }) // 往房子里加东西（房子坐标，先摆好位置和朝向）：按位置自动算房间、找贴着的墙，
+//                                      // 跟着房间显示/隐藏、墙被削矮时一起藏；interact 是点它时 pick 返回的 id。也可以直接给 { room, wall }。
+//                                      // 显示物件的位置统一写在 layout.js（布置表）里
 import * as THREE from "three";
 import { GLTFLoader } from "./lib/GLTFLoader.js";
 import { RoomEnvironment } from "./lib/RoomEnvironment.js";
@@ -220,12 +222,37 @@ function makeHouse(root) {
   }
 
   var bounds = new THREE.Box3().setFromObject(root);
+  // 每面墙占的地方（房子坐标），自动找“物件贴着哪面墙”用
+  walls.forEach(function (w) { w.box = new THREE.Box3().setFromObject(w.node); });
+  // 物件贴着的墙：墙在物件背后、离得很近（挂墙的东西正面朝外），物件的位置落在这面墙的范围里
+  function wallBehind(pos, facing) {
+    var nx = Math.sin(facing), nz = Math.cos(facing), best = null, bestD = 0.35;
+    walls.forEach(function (w) {
+      var along = w.axis === "x" ? nz : nx;          // 墙的法线方向上，物件朝向的分量
+      if (Math.abs(along) < 0.7) return;              // 物件没正对这面墙
+      var d = (w.axis === "x" ? pos.z : pos.x) - w.c; // 物件在墙的哪一侧、多远
+      if (d * along <= 0 || Math.abs(d) > bestD) return;
+      var a = w.axis === "x" ? pos.x : pos.z, lo = w.axis === "x" ? w.box.min.x : w.box.min.z, hi = w.axis === "x" ? w.box.max.x : w.box.max.z;
+      if (a < lo - 0.05 || a > hi + 0.05 || pos.y > w.box.max.y + 0.1) return;
+      best = w; bestD = Math.abs(d);
+    });
+    return best;
+  }
+  // 往房子里加东西。opts.auto：按位置自动算房间（物件正前方 0.3 米落在哪个房间）和贴着的墙；也可以直接给 room、wall
   function addItem(obj, opts) {
     opts = opts || {};
+    var room = opts.room || "", wall = opts.wall || null;
+    if (opts.auto) {
+      var f = obj.rotation.y, p = obj.position;
+      var w = wallBehind(p, f);
+      if (w) wall = w.id;
+      room = roomAt(p.x + Math.sin(f) * 0.3, p.z + Math.cos(f) * 0.3) || roomAt(p.x, p.z) || "";
+    }
     if (opts.interact) { obj.userData.interact = opts.interact; interactables[opts.interact] = obj; }
     obj.traverse(function (o) { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } });
     root.add(obj);
-    items.push({ node: obj, room: opts.room || "", wallmount: opts.wall || null, solid: false });
+    items.push({ node: obj, room: room, wallmount: wall, solid: false });
+    return { room: room, wall: wall };
   }
 
   var api = { root: root, addItem: addItem, rooms: rooms, spots: spots, colliders: colliders, interactables: interactables, walls: walls, bounds: bounds,

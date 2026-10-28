@@ -2,12 +2,13 @@
 // 一摞最多 PER_STACK 个，摞满了在旁边另起一摞，最多 STACKS.length 摞（再多只在列表里显示）。
 // 箱子颜色按城市（parcel-data.js 的 cityColor），侧面贴白色面单写城市名。
 //   import { makeParcelBoxes } from "./parcel-boxes.js";
-//   var g = makeParcelBoxes(parcels); scene.add(g); // g.userData.boxes 是每个箱子，点中箱子时 object.userData.parcel 为真
+//   var g = makeParcelBoxes(parcels); // g.userData.boxes 是每个箱子，点中箱子时 object.userData.parcel 为真
+//   g 的原点就是第一摞的位置，整组摆在哪由 layout.js（布置表）的 parcels 决定
 import * as THREE from "three";
 import { cityColor } from "./parcel-data.js";
 
-// 每摞的位置（three.js 坐标，单位米）：门和右边置物架、前墙之间的空地；箱子尺寸
-var STACKS = [[0.56, 3.13], [0.9, 3.13], [0.56, 2.8]];
+// 每摞相对第一摞的位置 [右, 前]（米）：第二摞在右边，第三摞在第一摞后面；箱子尺寸
+var STACKS = [[0, 0], [0.34, 0], [0, -0.33]];
 var PER_STACK = 5;
 var W = 0.3, D = 0.24, H = 0.15;
 

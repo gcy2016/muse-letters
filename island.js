@@ -10,6 +10,7 @@ import { RoomEnvironment } from "./lib/RoomEnvironment.js";
 import { isUnlocked, unlock } from "./lock.js";
 import { getWeather, skyKind, skyPlace, sources as weatherSources } from "./weather-data.js";
 import { makeWeatherFx } from "./weather-fx.js";
+import { ISLAND as ISLAND_LAYOUT, arrange } from "./layout.js";
 import { mountBoardButton } from "./board-ui.js";
 
 var params = new URLSearchParams(location.search);
@@ -70,6 +71,12 @@ var GROUND = 1.0;
 
 // 房子放在岛中间偏后，门朝前（+z）。房子底座高 0.25，压在草地上
 var HOUSE_POS = new THREE.Vector3(0, GROUND + 0.25, -2.5);
+// 按布置表（layout.js 的 ISLAND）摆：挂在房子上的写相对房子的坐标（房子挪了跟着走），其余是岛上的坐标（y 从草地算起）
+function islandPlace(obj, spec) {
+  arrange(obj, spec);
+  obj.position.add(spec.onHouse ? HOUSE_POS : new THREE.Vector3(0, GROUND, 0));
+  return obj;
+}
 
 // 椰子树
 function palm(x, z, h, lean) {
@@ -178,13 +185,12 @@ var nameSign = new THREE.Group();
     });
   });
 })();
-nameSign.position.set(-4, GROUND, 11.8); // 靠岛边、小路起点左边，离房子远一点
-nameSign.rotation.y = 0.25;
+islandPlace(nameSign, ISLAND_LAYOUT.nameSign); // 位置在 layout.js（布置表）
 island.add(nameSign);
 
 // “噜噜之家”门牌：挂在门左边的墙上，和窗户差不多高；右边离门框 0.85 米，留着贴对联
 var homeSign = thickBoard("assets/island/home-plaque.webp", 1.1, 1.1 * 381 / 571, 0.04, 2);
-homeSign.position.set(-2.06, GROUND + 1.9, 1.03);
+islandPlace(homeSign, ISLAND_LAYOUT.homeSign);
 island.add(homeSign);
 
 // 煤油灯：挂在门右边的墙上，铁架子伸出来吊一盏玻璃灯，灯罩里暖黄的光；左边离门框 0.85 米，同样留着贴对联
@@ -215,8 +221,7 @@ var lamp = new THREE.Group();
   glow.position.set(0, -0.26, 0.05);
   hang.add(glow);
 })();
-lamp.position.set(1.2, GROUND + 1.95, 1.0);
-lamp.scale.setScalar(1.4);
+islandPlace(lamp, ISLAND_LAYOUT.lamp);
 island.add(lamp);
 
 // 云
