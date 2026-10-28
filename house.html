@@ -129,8 +129,8 @@
     var boardUI = mountBoardButton();
     makeCorkNotes(house);
     // 玄关后墙（通往厨房那面）上的小屏：门洞右边挂天气、左边挂日历，每边上下两格（WALL_SLOTS 是高度），
-    // 先用上面一格，下面一格留给以后噜噜大王的天气、日历
-    var WALL_SLOTS = [2.15, 1.55];
+    // 上面一格（噜噜小兵的）顶边和门洞门楣顶（2.17 米）对齐；下面一格放噜噜大王的。小屏连木框高约 0.49 米
+    var WALL_SLOTS = [1.93, 1.36];
     // 天气小屏：显示明天的天气（weather-data.js），半小时重读一次
     var weatherBoard = makeWeatherBoard({ width: 0.62 });
     weatherBoard.group.position.set(0.8, WALL_SLOTS[0], 0.15);
