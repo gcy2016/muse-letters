@@ -1,7 +1,7 @@
 // 噜噜岛：岛上是噜噜之家（house.js），从外面看盖着屋顶。右下角常驻“留言板”按钮（board-ui.js，有新留言亮红点）；
 // 点房子的门进屋（house.html，从玄关开始看）。门锁：这个浏览器开过锁，门就开着；没开过，点门先输密码。
 // 小岛单位是米，和房子一样。小miu 和 lulu 先只待在房子里。
-// 天气：岛上的天空提前变成明天的天气（weather-fx.js），大门旁立一块天气牌（weather-board.js），数据见 weather-data.js
+// 天气：岛上的天空提前变成明天的天气（weather-fx.js），数据见 weather-data.js；天气牌只在屋里玄关（house.html）
 // ?from=house：从屋里出来，镜头停在门口；?wx=小雨 用示例数据看某种天气的效果（?wx=demo 示例原样）
 import * as THREE from "three";
 import { OrbitControls } from "./lib/OrbitControls.js";
@@ -9,7 +9,6 @@ import { loadHouse } from "./house.js";
 import { RoomEnvironment } from "./lib/RoomEnvironment.js";
 import { isUnlocked, unlock } from "./lock.js";
 import { getWeather, skyKind, skyPlace, sources as weatherSources } from "./weather-data.js";
-import { makeWeatherBoard, weatherDetail, WEATHER_CSS } from "./weather-board.js";
 import { makeWeatherFx } from "./weather-fx.js";
 import { mountBoardButton } from "./board-ui.js";
 
@@ -236,18 +235,13 @@ function cloud(x, y, z) {
 }
 var clouds = [cloud(-20, 16, -20), cloud(16, 19, -26), cloud(26, 14, 8)];
 
-// 天气：天空效果 + 大门左前方小路旁的天气牌，显示明天的天气；半小时重读一次。
-// 天空一次只显示一个城市（右上角按钮切换，选择记在本机）；天气牌上几个城市都显示
+// 天气：天空提前变成明天的天气；半小时重读一次。天空一次只显示一个城市（右上角按钮切换，选择记在本机）
 // 房子单独打了环境光（见下面加载房子的地方），天暗下来时房子也跟着暗
 var houseEnv = 0.6, houseMats = [];
 function setHouseEnv() { houseMats.forEach(function (m) { m.envMapIntensity = houseEnv; }); }
 var fx = makeWeatherFx(scene, { hemi: hemi, sun: sun, clouds: clouds, makeCloud: cloud, radius: 24,
   onChange: function (kind, look) { houseEnv = 0.6 * Math.min(1, (look.hemi + look.sun * 0.3) / 1.54); setHouseEnv(); } });
-var weatherBoard = makeWeatherBoard({ stand: true, width: 1.3, height: 1.25 });
-weatherBoard.group.position.set(-2.3, GROUND, 3.4);
-weatherBoard.group.rotation.y = 0.3;
-island.add(weatherBoard.group);
-var weather = null, weatherError = "";
+var weather = null;
 var SKY_KEY = "muse-weather-sky";
 var skySrc = (function () { try { return localStorage.getItem(SKY_KEY); } catch (e) { return null; } })() || (weatherSources()[0] || {}).id;
 var wxParam = params.get("wx");
@@ -276,20 +270,16 @@ function showSky() {
 }
 function refreshWeather() {
   getWeather().then(function (w) {
-    weather = w; weatherError = "";
-    weatherBoard.draw(w);
+    weather = w;
     showSky();
-  }).catch(function (e) {
-    weatherError = e.message || "网络不通";
-    weatherBoard.draw(null, "没加载出来");
-  });
+  }).catch(function (e) { console.warn("天气加载失败：", e.message); });
 }
 refreshWeather();
 setInterval(refreshWeather, 30 * 60 * 1000);
 
 // 镜头：一开始在岛前方，能看到房子正面和门；从屋里出来时停在门口
 var hint = document.getElementById("hint");
-var HINT = "拖动旋转 · 滚轮/双指缩放 · 点门进屋 · 点天气牌看明天的天气";
+var HINT = "拖动旋转 · 滚轮/双指缩放 · 点门进屋";
 var goal = null;
 function look(target, az, el, dist, instant) {
   var pos = target.clone().add(new THREE.Vector3(Math.sin(az) * Math.cos(el), Math.sin(el), Math.cos(az) * Math.cos(el)).multiplyScalar(dist));
@@ -356,20 +346,7 @@ function enterHouse() {
 // 右下角常驻的留言板按钮
 mountBoardButton();
 
-// 弹窗（天气详情）
-var panel = document.getElementById("panel"), content = document.getElementById("content");
-var wxStyle = document.createElement("style");
-wxStyle.textContent = WEATHER_CSS;
-document.head.appendChild(wxStyle);
-function openWeather() {
-  content.innerHTML = "";
-  content.append(weatherDetail(weather, weatherError));
-  panel.classList.add("open");
-}
-document.getElementById("close").onclick = function () { panel.classList.remove("open"); };
-panel.addEventListener("click", function (e) { if (e.target === panel) panel.classList.remove("open"); });
-
-// 点击：门、天气牌
+// 点击：门
 var raycaster = new THREE.Raycaster();
 var pointer = new THREE.Vector2();
 function hit(ev) {
@@ -377,7 +354,6 @@ function hit(ev) {
   pointer.x = ((ev.clientX - rect.left) / rect.width) * 2 - 1;
   pointer.y = -((ev.clientY - rect.top) / rect.height) * 2 + 1;
   raycaster.setFromCamera(pointer, camera);
-  if (raycaster.intersectObject(weatherBoard.group, true).length) return "weather";
   if (!doorHotspot) return null;
   return raycaster.intersectObject(doorHotspot).length ? "door" : null; // 房子从外面只认门
 }
@@ -390,7 +366,6 @@ canvas.addEventListener("pointerup", function (e) {
   if (moved >= 6) return; // 拖动旋转时不算点击
   var what = hit(e);
   if (what === "door") enterHouse();
-  else if (what === "weather") openWeather();
 });
 canvas.addEventListener("pointermove", function (e) {
   if (e.pointerType === "mouse") canvas.style.cursor = hit(e) ? "pointer" : "";

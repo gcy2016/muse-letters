@@ -1,4 +1,4 @@
-// 天气牌：画天气图标、做 3D 的天气牌（岛上大门旁立着的、屋里玄关墙上挂着的），以及点开后的详情。
+// 天气牌：画天气图标、做 3D 的天气牌（屋里玄关墙上挂着的；stand 立在地上的样式留着备用），以及点开后的详情。
 //   import { makeWeatherBoard, weatherDetail, iconURL } from "./weather-board.js";
 //   var board = makeWeatherBoard({ stand: true });  // stand：带两根柱子立在地上；不带就是挂墙的小屏
 //   board.group 放进场景；board.draw(weather)；board.draw(null, "还没有预报") 显示一句话

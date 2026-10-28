@@ -1,6 +1,6 @@
 // 明天的天气预报：Muse 晚上发一条标题以 [天气] 开头的 issue（格式见 issue #94）。
 // 来源按发帖账号分（config.js 的 weatherSources：小miu 发重庆，lulu 发武汉），每个来源只用它最新的一条。
-// 岛上的天空按选中来源“明天”的天气变（主页可切换）；岛上大门旁、屋里玄关的天气牌显示所有来源。
+// 岛上的天空按选中来源“明天”的天气变（主页可切换）；屋里玄关的天气小屏显示所有来源。
 //   import { getWeather, skyKind, skyPlace } from "./weather-data.js";
 //   var w = await getWeather();   // { places: [{ src, city, name, who, tomorrow, after, air, tip, other, date, stale, published, source, url }], sources }
 //   网址加 ?wx=demo 用示例数据看效果，?wx=小雨（或任一天气用词）把示例里重庆明天的天气换成这种
