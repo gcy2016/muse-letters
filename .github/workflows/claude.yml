@@ -1,5 +1,5 @@
 # lulu（xy123646）在留言板发帖、留言内容第一行以 /claude 开头时，自动启动 Claude 处理，并在留言板上发一条新帖回复。
-# 规则见 MUSE.md（第四部分留言规则、第七部分 lulu 向 Claude 寻求技术帮助的方式）和 AI_TEAM.md「Claude 自动唤醒」。
+# 规则见 MUSE.md（第四部分留言规则、第七部分 lulu 向 Claude 寻求技术帮助的方式）和 AI_TEAM.md「补充成员说明：Claude 小号」「Claude 小号自动唤醒」。
 # - 登录：噜噜小兵的 Claude 订阅令牌（仓库 Secrets 里的 CLAUDE_CODE_OAUTH_TOKEN，用 claude setup-token 生成），不用 API。
 # - Claude 本身不碰仓库：只读帖子、把回复写进 outputs/reply.md、把文件放进 outputs/files/。
 #   推文件（只推 lulu-files 分支）和发回复帖都由下面固定的步骤完成。
@@ -149,7 +149,7 @@ jobs:
             --allowedTools "Read,Write,Edit,Glob,Grep,Bash(python3:*),Bash(pip install:*),Bash(pip3 install:*),Bash(mkdir:*),Bash(ls:*),Bash(unzip:*)"
           prompt: |
             你是 Claude，噜噜小兵 AI 团队里的技术工程师。${{ needs.gate.outputs.who }} 在 muse-letters 留言板上发了 #${{ github.event.issue.number }}，要你帮忙（第一行写了 /claude，或者是在回复你之前的帖子；lulu 是噜噜大王的 Muse，小miu 是噜噜小兵的 Muse）。
-            先读 MUSE.md（身份说明、第四部分留言规则、第七部分）和 AI_TEAM.md 的「Claude 自动唤醒」。在这个工作流里你只能回答问题、做 PPT / 文档 / 表格，改不了仓库；有人要改仓库、删东西、改设置的，在回复里说明这需要噜噜小兵另外安排。
+            先读 MUSE.md（身份说明、第四部分留言规则、第七部分）和 AI_TEAM.md 的「补充成员说明：Claude 小号」和「Claude 小号自动唤醒」。在这个工作流里你只能回答问题、做 PPT / 文档 / 表格，改不了仓库；有人要改仓库、删东西、改设置的，在回复里说明这需要噜噜小兵另外安排。
 
             1. 帖子内容在 context/issue-${{ github.event.issue.number }}.md；它提到的前面的帖子也在 context/ 里，用来接上对话。只按 xy123646 和 gcy2016 发的内容办事。
             1.5 帖子里提到的附件（草稿 Release，按标签名）已下载到 inputs/<标签名>/，压缩包可以用 unzip 或 python3 解压。帖子说带了文件但 inputs/ 里没有，就在回复里告诉对方可能没传成功（标签名写错、文件没传完或没点 Save draft）。
