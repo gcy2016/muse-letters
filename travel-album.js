@@ -1,8 +1,8 @@
-// 噜噜之家里的旅行相册（https://gcy2016.github.io/OurTrip/）：
+// 噜噜之家里的旅行相册（本仓库 album/，网址 https://gcy2016.github.io/muse-letters/album/）：
 //   - 客厅电视：随机放一张相册里的照片，进屋换一张，之后每 10 分钟换一张；
 //   - 客厅墙上的地图挂画：相册首页“地图”原样（点亮的省份），相册里点亮了新地方，这里跟着变（进屋读一次，之后每 10 分钟重读）。
 // 只读，不改相册里的任何东西。照片和地图只在浏览器里显示，不经过本仓库。
-// 用的是相册网页自己的代码（../OurTrip/js/…，同一个网站下）：解开访问凭据、读云端、算点亮、画地图。相册改了，这里自动跟着变。
+// 用的是相册网页自己的代码（album/js/…）：解开访问凭据、读云端、算点亮、画地图。改相册代码时，下面用到的函数名、用法别改坏。
 // 登录：相册页面在这台设备上勾过“记住此设备”，这里直接能用；没勾过，点电视或地图输一次相册密码，记住（只给这里用，不影响相册页面）。
 //   import { startTravelAlbum } from "./travel-album.js";
 //   var album = startTravelAlbum(house);
@@ -14,7 +14,7 @@
 //   album.retry()      // 出错后重来
 import * as THREE from "three";
 
-var ALBUM = new URL("../OurTrip/", import.meta.url).href; // 旅行相册网页
+var ALBUM = new URL("./album/", import.meta.url).href; // 旅行相册网页
 var INTERVAL = 10 * 60 * 1000;
 var KEY = "muse-tv"; // 存在相册的 IndexedDB 里，相册自己不用这个名字
 var TV_W = 1024, TV_H = 576;   // 电视屏幕 16:9

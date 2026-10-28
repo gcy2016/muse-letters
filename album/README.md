@@ -4,8 +4,10 @@
 
 > 仓库名称约定：本仓库（网页代码，公开）与原 OurTrip 仓库（映射源文件，私有）互换名称——本仓库改名为 **OurTrip**，原 OurTrip 改名为 **workspace-9**。下文均按互换后的名称书写。
 
-- 正式地址（开启 Pages 后）：`https://gcy2016.github.io/OurTrip/`
-- 演示模式（不连接云端，数据只存在当前浏览器里，密码 `demo1234`）：`https://gcy2016.github.io/OurTrip/?demo=1`
+> **2026-10-28 起，本相册搬进了 `gcy2016/muse-letters` 仓库的 `album/` 目录**（git subtree，保留原提交记录），和噜噜之家（客厅电视、墙上地图）放在一起。以后改相册在 muse-letters 里改；原 OurTrip 仓库只留一个跳转页。下文的文件路径都相对于 `album/`。
+
+- 正式地址：`https://gcy2016.github.io/muse-letters/album/`（旧地址 `https://gcy2016.github.io/OurTrip/` 会自动跳过来）
+- 演示模式（不连接云端，数据只存在当前浏览器里，密码 `demo1234`）：`https://gcy2016.github.io/muse-letters/album/?demo=1`
 - 部署步骤：[`docs/部署说明.md`](docs/部署说明.md)
 
 ## 功能概览
