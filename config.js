@@ -41,7 +41,7 @@ window.BOARD_CONFIG = {
     { id: "wh", city: "武汉", login: "xy123646", who: "lulu" },
   ],
   // 日历：Muse 读主人手机日历，发标题以 calendarPrefix 开头的 issue（日程 + 提醒，加密，格式见 calendar-data.js）。
-  // 按发帖账号分来源，每个来源只用最新一条；玄关门洞左边每个来源一块日历小屏（从上往下排，最多两块）。
+  // 按发帖账号分来源，每个来源只用最新一条；玄关门洞左边的日历小屏只有一块，所有来源合在一起显示。
   // 以后 lulu 发噜噜大王的日历，加一行 { id: "dawang", owner: "噜噜大王", login: "xy123646", who: "lulu" } 即可。
   calendarPrefix: "[日历]",
   calendarSources: [

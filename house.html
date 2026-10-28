@@ -128,12 +128,12 @@
     // 留言板：右下角常驻按钮（有新留言亮红点）；玄关软木板上显示留言板网页的样子，每 10 分钟更新
     var boardUI = mountBoardButton();
     makeCorkNotes(house);
-    // 玄关后墙（通往厨房那面）上的小屏：门洞右边挂天气、左边挂日历，每边上下两格（WALL_SLOTS 是高度），
-    // 上面一格（噜噜小兵的）顶边和门洞门楣顶（2.17 米）对齐；下面一格放噜噜大王的。小屏连木框高约 0.49 米
-    var WALL_SLOTS = [1.93, 1.36];
-    // 天气小屏：显示明天的天气（weather-data.js），半小时重读一次
+    // 玄关后墙（通往厨房那面）上的小屏：门洞右边挂天气、左边挂日历，各一块，几个人的内容都合在这一块里显示。
+    // 顶边和门洞门楣顶（2.17 米）对齐（小屏连木框高约 0.49 米）
+    var SCREEN_Y = 1.93;
+    // 天气小屏：显示明天的天气（weather-data.js），重庆、武汉都有预报时左右两栏；半小时重读一次
     var weatherBoard = makeWeatherBoard({ width: 0.62 });
-    weatherBoard.group.position.set(0.8, WALL_SLOTS[0], 0.15);
+    weatherBoard.group.position.set(0.8, SCREEN_Y, 0.15);
     house.addItem(weatherBoard.group, { room: "entry", wall: "mid_kitchen_entry", interact: "weather" });
     var weather = null, weatherError = "";
     function refreshWeather() {
@@ -146,22 +146,19 @@
     wxStyle.textContent = WEATHER_CSS + CALENDAR_CSS;
     document.head.appendChild(wxStyle);
 
-    // 日历小屏：门洞左边，每个来源（config.js 的 calendarSources）一块，从上往下排；左日程、右倒计时（calendar-data.js），
+    // 日历小屏：门洞左边，所有人（config.js 的 calendarSources）的日历合在这一块里；左日程、右倒计时（calendar-data.js），
     // 半小时重读一次（倒计时天数也跟着重算）
     var calendars = null, calendarError = "";
-    var calendarBoards = (window.BOARD_CONFIG.calendarSources || []).slice(0, WALL_SLOTS.length).map(function (src, i) {
-      var b = makeCalendarBoard({ width: 0.62 });
-      b.group.position.set(-1.1, WALL_SLOTS[i], 0.15);
-      house.addItem(b.group, { room: "entry", wall: "mid_living_entry", interact: "calendar" + i });
-      return b;
-    });
+    var calendarBoard = makeCalendarBoard({ width: 0.62 });
+    calendarBoard.group.position.set(-1.1, SCREEN_Y, 0.15);
+    house.addItem(calendarBoard.group, { room: "entry", wall: "mid_living_entry", interact: "calendar" });
     function refreshCalendars() {
       loadCalendars(key).then(function (cals) {
         calendars = cals; calendarError = "";
-        calendarBoards.forEach(function (b, i) { b.draw(cals[i]); });
+        calendarBoard.draw(cals);
       }, function (e) {
         calendarError = e.message || "网络不通";
-        if (!calendars) calendarBoards.forEach(function (b) { b.draw(null, "没加载出来"); });
+        if (!calendars) calendarBoard.draw(null, "没加载出来");
       });
     }
     refreshCalendars();

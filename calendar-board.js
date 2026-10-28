@@ -1,6 +1,7 @@
 // 日历小屏：挂在玄关墙上（和天气小屏一样的木框），左边“日程”、右边“倒计时”；点开看全部。
+// 只有一块屏：几个人的日历（config.js 的 calendarSources）合在一起显示，有两个人的内容时每条后面标上是谁的。
 //   import { makeCalendarBoard } from "./calendar-board.js";
-//   var board = makeCalendarBoard({ width: 0.62 }); board.group 放进场景；board.draw(cal)；board.draw(null, "没加载出来")
+//   var board = makeCalendarBoard({ width: 0.62 }); board.group 放进场景；board.draw(cals)（loadCalendars 的结果）；board.draw(null, "没加载出来")
 // 点开后的详情在 calendar-detail.js（不依赖 three.js，日历页面也用）
 import * as THREE from "three";
 import { upcoming, dayLabel } from "./calendar-data.js";
@@ -45,17 +46,27 @@ export function makeCalendarBoard(opts) {
     g.fillText((now.getMonth() + 1) + "月" + now.getDate() + "日 周" + "日一二三四五六"[now.getDay()], W - 36, 54);
   }
 
-  function draw(cal, message) {
-    var title = cal && cal.owner ? cal.owner + "的日历" : "日历";
-    header(title);
-    var msg = message || (!cal ? "加载中…" : !cal.has ? "还没有日历" : cal.bad ? "解不开，请 Muse 重新留言" : "");
+  function draw(cals, message) {
+    cals = cals || [];
+    // 标题：只配了一个人就是“xx的日历”，几个人合在一起就是“我们的日历”
+    header(cals.length === 1 ? cals[0].owner + "的日历" : "我们的日历");
+    var ok = cals.filter(function (c) { return c.has && !c.bad; });
+    var msg = message || (!cals.length ? "加载中…" : ok.length ? "" : cals.some(function (c) { return c.bad; }) ? "解不开，请 Muse 重新留言" : "还没有日历");
     if (msg) {
       g.fillStyle = INK; g.textAlign = "center"; g.font = "52px " + FONT;
       g.fillText(msg, W / 2, (H + 104) / 2);
       tex.needsUpdate = true;
       return;
     }
-    var now = new Date(), u = upcoming(cal, now);
+    // 几个人的合在一起排；有两个人的内容时，每条标上是谁的
+    var now = new Date(), u = { events: [], reminders: [] }, tag = ok.length > 1;
+    ok.forEach(function (c) {
+      var one = upcoming(c, now);
+      one.events.forEach(function (e) { u.events.push(Object.assign({ owner: c.owner }, e)); });
+      one.reminders.forEach(function (r) { u.reminders.push(Object.assign({ owner: c.owner }, r)); });
+    });
+    u.events.sort(function (a, b) { return a.date - b.date || a.time.localeCompare(b.time); });
+    u.reminders.sort(function (a, b) { return a.days - b.days; });
     // 中间竖线：左日程、右倒计时
     var mid = 560;
     g.fillStyle = "#eadfd6"; g.fillRect(mid, 130, 3, H - 160);
@@ -67,7 +78,7 @@ export function makeCalendarBoard(opts) {
     var y = 212;
     if (!u.events.length) { g.fillStyle = MUTED; g.font = "38px " + FONT; g.fillText("近期没有日程", 36, y); }
     u.events.slice(0, 4).forEach(function (e) {
-      g.fillStyle = MUTED; fit(g, dayLabel(e.date, now) + (e.time ? " " + e.time : ""), 36, y, mid - 60, 32);
+      g.fillStyle = MUTED; fit(g, dayLabel(e.date, now) + (e.time ? " " + e.time : "") + (tag ? " · " + e.owner : ""), 36, y, mid - 60, 32);
       g.fillStyle = INK; fit(g, e.text, 36, y + 44, mid - 60, 40, "bold ");
       y += 104;
     });
@@ -91,6 +102,7 @@ export function makeCalendarBoard(opts) {
         g.fillStyle = RED; g.font = "bold 68px " + FONT; g.fillText(String(r.days), x, y + 58);
         x += g.measureText(String(r.days)).width + 8;
         g.font = "34px " + FONT; g.fillText("天", x, y + 64);
+        if (tag) { x += g.measureText("天").width + 14; g.fillStyle = MUTED; fit(g, r.owner, x, y + 64, W - 32 - x, 28); }
       }
       y += 128;
     });
