@@ -5,7 +5,7 @@
   var seg = location.pathname.split("/")[1];
   if (m && seg) { cfg.owner = m[1]; cfg.repo = seg; }
   var MARK = "Muse留言"; // 正文第一行的署名，按 AI_TEAM.md 的留言署名规则
-  var CLAUDE_MARK = "Claude留言"; // Claude 借留言板回复 lulu，也用 gcy2016 发，靠这行署名认出来
+  var CLAUDE_MARK = "Claude留言"; // 工作流（github-actions[bot]）替 Claude 回复的帖子第一行是这个署名
   var repoUrl = "https://github.com/" + cfg.owner + "/" + cfg.repo;
   var members = cfg.members.filter(function (m) { return m.login; });
   var owners = cfg.owners || [];
@@ -94,7 +94,8 @@
     var msgs = issues.filter(function (it) {
       return !it.pull_request &&
         it.title.indexOf(cfg.titlePrefix) === 0 &&
-        (memberOf(it.user.login) >= 0 || isClaudeBot(it));
+        // 留言板上的 Claude 只有工作流发的小号；用 gcy2016 署名“Claude留言”的帖子不在留言板上显示
+        (isClaudeBot(it) || (memberOf(it.user.login) >= 0 && !parseBody(it.body).claude));
     });
     if (!msgs.length) {
       $("status").textContent = note || "还没有留言，来写第一条吧。";
@@ -105,12 +106,10 @@
       var idx = memberOf(it.user.login);
       var parsed = parseBody(it.body);
       var oi = ownerOf(it, parsed);
-      // 按账号显示名字，改名后旧留言也跟着变；Claude 和主人本人靠第一行署名认出来。
-      // 工作流发的（github-actions[bot]）是“Claude 小号”，/claude 叫醒的就是它；用 gcy2016 发的是对话里的 Claude，收不到留言板通知
-      var bot = parsed.claude && isClaudeBot(it);
-      var who = parsed.claude ? (bot ? "Claude 小号" : "Claude") : oi >= 0 ? owners[oi].name : members[idx].name;
+      // 按账号显示名字，改名后旧留言也跟着变；Claude 和主人本人靠第一行署名认出来
+      var who = parsed.claude ? "Claude" : oi >= 0 ? owners[oi].name : members[idx].name;
 
-      var li = el("li", "msg " + (parsed.claude ? (bot ? "claude" : "claude cmain") : oi >= 0 ? "owner o" + oi : "m" + idx));
+      var li = el("li", "msg " + (parsed.claude ? "claude" : oi >= 0 ? "owner o" + oi : "m" + idx));
       var meta = el("div", "meta");
       meta.appendChild(el("span", "who", who));
       meta.appendChild(el("span", null, fmtTime(it.created_at)));
@@ -122,10 +121,8 @@
       var reply = el("button", null, "回复");
       reply.type = "button";
       reply.onclick = function () {
-        // 预填“回复 #编号（谁）：”和下一行的“/谁 ”（MUSE.md 留言规则：第一行以 /对象 开头）；不引用原文，原帖就在列表里。
-        // 回复对话里的 Claude 填 /噜噜小兵：它看不到留言板，由噜噜小兵转告；填 /claude 会叫醒小号
-        var to = parsed.claude ? (bot ? "claude" : owners[0].name) : who;
-        $("content").value = "回复 #" + it.number + "（" + who + "）：\n/" + to + " ";
+        // 预填“回复 #编号（谁）：”和下一行的“/谁 ”（MUSE.md 留言规则：第一行以 /对象 开头）；不引用原文，原帖就在列表里
+        $("content").value = "回复 #" + it.number + "（" + who + "）：\n/" + (parsed.claude ? "claude" : who) + " ";
         $("content").focus();
         $("compose").scrollIntoView({ behavior: "smooth" });
       };

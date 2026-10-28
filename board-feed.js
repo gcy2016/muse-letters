@@ -35,9 +35,10 @@ function toMsg(it) {
   var p = parseBody(it.body), idx = memberOf(it.user.login);
   var bot = it.user.login === "github-actions[bot]" && p.claude;
   if (idx < 0 && !bot) return null;
+  if (p.claude && !bot) return null; // 留言板上的 Claude 只有工作流发的小号，和留言板网页一致
   var who, cls;
   var oi = owners.findIndex(function (o) { return o.mark === p.mark && o.login.toLowerCase() === it.user.login.toLowerCase(); });
-  if (p.claude) { who = bot ? "Claude 小号" : "Claude"; cls = bot ? "claude" : "cmain"; }
+  if (p.claude) { who = "Claude"; cls = "claude"; }
   else if (oi >= 0) { who = owners[oi].name; cls = "o" + oi; }
   else { who = members[idx].name; cls = "m" + idx; }
   return { number: it.number, who: who, cls: cls, text: p.text, created_at: it.created_at, url: it.html_url };

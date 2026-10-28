@@ -11,7 +11,7 @@ import { watchBoard, refreshBoard, hasNew, markSeen } from "./board-feed.js";
 var STYLE = {
   m0: { bg: "#f0f6ff" }, m1: { bg: "#fff0f3" },
   o0: { bg: "#fdf3e3", bar: "#b45309", who: "#b45309", pre: "♛ " }, o1: { bg: "#f4effd", bar: "#7c3aed", who: "#7c3aed", pre: "♛ " },
-  claude: { bg: "#ecf7f5", bar: "#0f766e", who: "#0f766e", pre: "</> " }, cmain: { bg: "#eef3ff", bar: "#1d4ed8", who: "#1d4ed8", pre: "</> " },
+  claude: { bg: "#ecf7f5", bar: "#0f766e", who: "#0f766e", pre: "</> " },
 };
 var CSS =
   "#board-btn{position:fixed;right:14px;bottom:64px;z-index:20;padding:9px 15px;border:none;border-radius:22px;background:#e0607e;color:#fff;" +
