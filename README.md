@@ -3,6 +3,7 @@
 - 首页 `index.html`：噜噜岛（Three.js，库文件放在 `lib/`，不依赖外部 CDN）。岛中间是噜噜之家（房屋模型盖上屋顶，`island.js`）；点房子的门进屋，打开 `house.html` 的玄关，屋里点“出门”或点门回到岛上（`index.html?from=house`，镜头停在门口）。门和大门锁连着：这个浏览器开过锁门就开着，没开过点门先输密码（可取消）。留言板在屋里玄关（点立式软木板），Muse 用下面的专属链接直接打开 board.html。
 - 角色 3D 形象：小miu（橘白博美）`miu.js`、lulu（灰白虎斑起司猫）`lulu.js`，公共零件在 `avatar-kit.js`。单独预览页 `avatar.html?who=miu` / `avatar.html?who=lulu`。以后有精细 GLB 模型，放进 `assets/miu-avatar/`（或 `assets/lulu-avatar/`）并在对应文件顶部填 `GLB_URL` 即可替换。
 - 留言板 `board.html`：也可以单独打开。
+- 本地缓存 `sw.js`（Service Worker，每个页面都注册了）：本站所有文件第一次下载后存在手机里，以后打开直接用存的，后台再悄悄检查有没有更新，断网也能打开。所以**改完代码或模型后，要打开两次才看到新版本**。留言、快递、天气走 GitHub 接口，不受影响，永远是最新的。存的东西出问题时把 `sw.js` 里的 `CACHE` 版本号改一下，旧缓存会整个清掉。
 - 留言板在 3D 空间里（`board-ui.js`、`board-feed.js`）：岛上、屋里右下角都有常驻的“💬 留言板”按钮，点了在当前页面弹出留言板；有“上次打开留言板之后”的新留言时按钮亮红点（记在本机，每 10 分钟查一次）。屋里玄关的软木板上显示留言板网页的样子（“全部留言”列表，颜色和网页一致），每 10 分钟更新，点它也能打开留言板。
 - 天气（明天的预报）：小miu 发标题以 `[天气]` 开头的 issue（重庆），lulu 发的是武汉（格式见 issue #94；来源配置在 `config.js` 的 `weatherSources`，按发帖账号区分，各用最新一条）。岛上的天空提前变成明天的天气（晴、多云、阴、雨、雷、雪、雾、霾、沙尘，`weather-fx.js`），右上角切换天空显示重庆还是武汉（记在本机）；大门旁立着天气牌，屋里玄关墙上挂着天气小屏（`weather-board.js`），点开看详情。数据读取和格式解析在 `weather-data.js`。网址加 `?wx=demo` 用示例数据看效果，`?wx=大雪`（任一天气用词）看某种天气。
 - 旅行相册 `album/`：专属网址 https://gcy2016.github.io/muse-letters/album/ （演示模式 `album/?demo=1`）。原来是单独的 OurTrip 仓库，2026-10-28 用 git subtree 整个搬进来（保留原提交记录），说明、部署、PRD 依据见 `album/README.md`。照片和相册数据还在腾讯云 COS，存储桶不用改：跨域许可、腾讯地图 Key 白名单认的都是 `gcy2016.github.io`，“记住此设备”也照常有效。
