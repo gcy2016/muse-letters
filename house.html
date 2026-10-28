@@ -76,6 +76,7 @@
     import { startTravelAlbum } from "./travel-album.js";
     import { getWeather } from "./weather-data.js";
     import { makeWeatherBoard, weatherDetail, WEATHER_CSS } from "./weather-board.js";
+    import { mountBoardButton, makeCorkNotes } from "./board-ui.js";
 
     var params = new URLSearchParams(location.search);
     var canvas = document.getElementById("scene");
@@ -117,6 +118,9 @@
     scene.add(house.root);
     // 旅行相册（travel-album.js）：客厅电视随机放照片，客厅墙上挂相册的点亮地图
     var tv = startTravelAlbum(house);
+    // 留言板：右下角常驻按钮（有新留言亮红点）；玄关软木板上显示留言板网页的样子，每 10 分钟更新
+    var boardUI = mountBoardButton();
+    makeCorkNotes(house);
     // 玄关天气小屏：挂在玄关通往厨房那面墙上、门洞右边，显示明天的天气（weather-data.js），半小时重读一次
     var weatherBoard = makeWeatherBoard({ width: 0.62 });
     weatherBoard.group.position.set(0.8, 1.5, 0.15);
@@ -308,7 +312,7 @@
       var h = hit(e);
       if (!h) return;
       if (h.id === "door") goOut();
-      else if (h.id === "board") open("<iframe src='board.html'></iframe>");
+      else if (h.id === "board") boardUI.open();
       else if (h.id === "parcel") open("<iframe src='parcels.html?view=list'></iframe>");
       else if (h.id === "tv") openTv();
       else if (h.id === "weather") { content.innerHTML = ""; content.append(weatherDetail(weather, weatherError)); panel.classList.add("open"); }

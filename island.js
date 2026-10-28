@@ -1,4 +1,4 @@
-// 噜噜岛：岛上是噜噜之家（house.js），从外面看盖着屋顶。留言板在屋里（玄关）；
+// 噜噜岛：岛上是噜噜之家（house.js），从外面看盖着屋顶。右下角常驻“留言板”按钮（board-ui.js，有新留言亮红点）；
 // 点房子的门进屋（house.html，从玄关开始看）。门锁：这个浏览器开过锁，门就开着；没开过，点门先输密码。
 // 小岛单位是米，和房子一样。小miu 和 lulu 先只待在房子里。
 // 天气：岛上的天空提前变成明天的天气（weather-fx.js），大门旁立一块天气牌（weather-board.js），数据见 weather-data.js
@@ -11,6 +11,7 @@ import { isUnlocked, unlock } from "./lock.js";
 import { getWeather, skyKind, skyPlace, sources as weatherSources } from "./weather-data.js";
 import { makeWeatherBoard, weatherDetail, WEATHER_CSS } from "./weather-board.js";
 import { makeWeatherFx } from "./weather-fx.js";
+import { mountBoardButton } from "./board-ui.js";
 
 var params = new URLSearchParams(location.search);
 var canvas = document.getElementById("scene");
@@ -301,6 +302,9 @@ function enterHouse() {
     setTimeout(function () { location.href = "house.html?room=entry"; }, 650);
   });
 }
+
+// 右下角常驻的留言板按钮
+mountBoardButton();
 
 // 弹窗（天气详情）
 var panel = document.getElementById("panel"), content = document.getElementById("content");
