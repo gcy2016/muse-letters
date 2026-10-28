@@ -32,7 +32,7 @@ function labelMat(city) {
   g.fillText(city.slice(0, 3), 64, 42);
   var t = new THREE.CanvasTexture(c);
   t.colorSpace = THREE.SRGBColorSpace;
-  return (labels[city] = new THREE.MeshStandardMaterial({ map: t, roughness: 0.7 }));
+  return (labels[city] = new THREE.MeshStandardMaterial({ map: t, roughness: 0.7, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -4 }));
 }
 
 // 每个箱子摆歪一点的角度按它是第几件固定（刷新后不会变）

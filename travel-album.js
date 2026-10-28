@@ -193,12 +193,13 @@ function makeScreen(mesh, w, h, glb) {
   canvas.width = w; canvas.height = h;
   var texture = new THREE.CanvasTexture(canvas);
   texture.colorSpace = THREE.SRGBColorSpace;
+  texture.anisotropy = 8; // 远处斜看时不发糊、不闪
   if (mesh) {
     texture.flipY = false; // 模型里的屏幕：和 glTF 的贴图坐标一致
     // 模型压缩（gltfpack）把贴图坐标缩小了，靠原贴图上的缩放补回来；换贴图时照搬，不然只显示一角
     var old = [].concat(mesh.material)[0].map;
     if (old) { texture.offset.copy(old.offset); texture.repeat.copy(old.repeat); texture.rotation = old.rotation; texture.center.copy(old.center); }
-    mesh.material = new THREE.MeshStandardMaterial({ map: texture, emissive: 0xffffff, emissiveMap: texture, emissiveIntensity: 0.9, roughness: 0.35 });
+    mesh.material = new THREE.MeshStandardMaterial({ map: texture, emissive: 0xffffff, emissiveMap: texture, emissiveIntensity: 0.9, roughness: 0.35, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -4 });
   }
   return { canvas: canvas, ctx: canvas.getContext("2d"), texture: texture, w: w, h: h };
 }
@@ -211,7 +212,8 @@ function makePoster() {
   var ph = POSTER.width * MAP_H / MAP_W;
   var frame = new THREE.Mesh(new THREE.BoxGeometry(POSTER.width + 0.1, ph + 0.1, 0.04), new THREE.MeshStandardMaterial({ color: 0xe3ac6c, roughness: 0.8 }));
   frame.position.z = 0.02;
-  var pic = new THREE.Mesh(new THREE.PlaneGeometry(POSTER.width, ph), new THREE.MeshStandardMaterial({ map: s.texture, roughness: 0.9 }));
+  var pic = new THREE.Mesh(new THREE.PlaneGeometry(POSTER.width, ph), new THREE.MeshStandardMaterial({ map: s.texture, roughness: 0.9, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -4 }));
+  // 画面离木框表面只有 1 毫米，镜头拉远后深度精度不够会和木框打架（花格子）；polygonOffset 让画面在深度比较时始终靠前。天气牌、日历、留言板、相框照片同理
   pic.position.z = 0.041; // 正面朝 +z，挂到墙上朝哪边由布置表的 facing 决定
   g.add(frame, pic);
   s.group = g;

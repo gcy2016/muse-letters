@@ -42,8 +42,8 @@ export function makePhotoFrame(img, width) {
   if (img.close) img.close();
   var tex = new THREE.CanvasTexture(cv);
   tex.colorSpace = THREE.SRGBColorSpace;
-  tex.anisotropy = 4;
-  var photo = new THREE.Mesh(new THREE.PlaneGeometry(pw, ph), new THREE.MeshStandardMaterial({ map: tex, roughness: 0.5 }));
+  tex.anisotropy = 8;
+  var photo = new THREE.Mesh(new THREE.PlaneGeometry(pw, ph), new THREE.MeshStandardMaterial({ map: tex, roughness: 0.5, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -4 }));
   photo.position.z = 0.0185;
   g.add(photo);
   // 玻璃：很淡的一层反光
