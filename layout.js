@@ -16,11 +16,11 @@ export var HOUSE = {
   // 玄关后墙（通往厨房那面）上的两块小屏：门洞右边天气、左边日历；顶边和门洞门楣顶（2.17 米）对齐
   weather: { pos: [0.8, 1.93, 0.15], facing: "+z", width: 0.62 },
   calendar: { pos: [-1.1, 1.93, 0.15], facing: "+z", width: 0.62 },
-  // 快递盒：玄关后墙（天气、日历那面）墙根，按城市分两摞。pos 是第一摞的位置，摞满了往左（-x）、往前（+z）另起一摞。
-  // cities 写这一摞放哪些城市的快递（“武汉市”这类写法也算）；没列出的城市放 mine。floor：放在地上，墙剖开削矮时不跟着藏
+  // 快递盒：玄关后墙（天气、日历那面）墙根，按谁提供的分两摞（config.js 的 parcelSources，按发帖账号分；颜色才按城市）。
+  // pos 是第一摞的位置，摞满了往左（-x）、往前（+z）另起一摞。floor：放在地上，墙剖开削矮时不跟着藏
   parcels: {
-    mine: { pos: [-0.93, 0, 0.26], facing: "+z", floor: true, cities: ["重庆"] }, // 噜噜小兵的：日历下面
-    hers: { pos: [0.96, 0, 0.26], facing: "+z", floor: true, cities: ["武汉"] },  // 噜噜大王的：天气下面
+    mine: { pos: [-0.93, 0, 0.26], facing: "+z", floor: true }, // 小miu 提供的（噜噜小兵的）：日历下面
+    hers: { pos: [0.96, 0, 0.26], facing: "+z", floor: true },  // lulu 提供的（噜噜大王的）：天气下面
   },
 };
 

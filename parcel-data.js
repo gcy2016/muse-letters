@@ -1,5 +1,6 @@
 // 待取件快递的数据：Muse 每天发一条标题以 [快递] 开头的留言，列出当天全部待取件；
-// 只用最新的一条，新的一来旧的就不再显示，不用去关。房屋和快递页面共用。
+// 按发帖账号分来源（config.js 的 parcelSources：小miu、lulu 各管各的），每个来源只用它最新的一条，
+// 新的一来旧的就不再显示，不用去关。房屋和快递页面共用。
 // 内容在快递页面用大门锁密码加密后才发出（正文里 ENC1. 开头那行），开锁后用同一个密码解开。
 // 解开后的文字格式（每件以【城市】开头，城市决定快递盒颜色；一件都没有就不写【】）：
 //   Muse留言
@@ -11,8 +12,9 @@
 //   到件时间：2026-10-29 09:30
 //   物品：衣服
 //
-//   import { loadParcels, cityColor, cityIn, arrivedAgo } from "./parcel-data.js";
-//   var snap = await loadParcels(key); // { who, created_at, url, number, parcels: [{ city, code, place, arrived, item, other }], plain, bad } 或 null（还没留过）
+//   import { loadParcels, cityColor, arrivedAgo } from "./parcel-data.js";
+//   var sets = await loadParcels(key); // [{ source, snap }]，按 parcelSources 的顺序，每个来源一项
+//   // snap：{ who, created_at, url, number, parcels: [{ city, code, place, arrived, item, other }], plain, bad } 或 null（这个来源还没留过）
 //   plain：这条没加密（直接在 GitHub 上手写的），照样显示；bad：解不开（多半是改密码前留的）
 import { decrypt } from "./lock.js";
 import { recentIssues } from "./gh-issues.js";
@@ -90,20 +92,23 @@ export function arrivedAgo(s) {
   return n <= 0 ? "今天" : n + "天前";
 }
 
-var CACHE_KEY = "muse-parcels-cache:" + owner + "/" + repo;
+function cacheKey(src) { return "muse-parcels-cache:" + owner + "/" + repo + ":" + src.id; }
+export function sources() { return cfg.parcelSources || []; }
 
-// 最新的一条 [快递]：从全站共用的最近帖子里找（gh-issues.js，不再单独问 GitHub）
+// 每个来源最新的一条 [快递]：从全站共用的最近帖子里找（gh-issues.js，不再单独问 GitHub）
 async function fetchLatest(opts) {
   var list = await recentIssues(opts);
-  for (var i = 0; i < list.length; i++) {
-    var it = list[i];
-    if (!it.pull_request && it.title.indexOf(cfg.parcelPrefix) === 0 && memberName(it.user.login)) {
-      var found = { number: it.number, url: it.html_url, created_at: it.created_at, login: it.user.login, body: it.body };
-      try { localStorage.setItem(CACHE_KEY, JSON.stringify(found)); } catch (e) {}
-      return found;
+  return sources().map(function (src) {
+    for (var i = 0; i < list.length; i++) {
+      var it = list[i];
+      if (!it.pull_request && it.title.indexOf(cfg.parcelPrefix) === 0 && String(it.user.login).toLowerCase() === src.login.toLowerCase()) {
+        var found = { number: it.number, url: it.html_url, created_at: it.created_at, login: it.user.login, body: it.body };
+        try { localStorage.setItem(cacheKey(src), JSON.stringify(found)); } catch (e) {}
+        return found;
+      }
     }
-  }
-  return null;
+    return null;
+  });
 }
 
 export async function toSnap(key, it) {
@@ -117,11 +122,20 @@ export async function toSnap(key, it) {
   return Object.assign(snap, { parcels: parseParcels(data.text) });
 }
 
+// 上次看到的（本机存的），一个都没存过返回 null
 export async function cachedSnap(key) {
-  try { return await toSnap(key, JSON.parse(localStorage.getItem(CACHE_KEY) || "null")); } catch (e) { return null; }
+  var any = false;
+  var sets = await Promise.all(sources().map(async function (src) {
+    var snap = null;
+    try { snap = await toSnap(key, JSON.parse(localStorage.getItem(cacheKey(src)) || "null")); } catch (e) {}
+    if (snap) any = true;
+    return { source: src, snap: snap };
+  }));
+  return any ? sets : null;
 }
 
 // opts.force：“刷新”按钮用，马上问一次 GitHub
 export async function loadParcels(key, opts) {
-  return toSnap(key, await fetchLatest(opts));
+  var latest = await fetchLatest(opts);
+  return Promise.all(sources().map(async function (src, i) { return { source: src, snap: await toSnap(key, latest[i]) }; }));
 }

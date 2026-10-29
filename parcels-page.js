@@ -1,4 +1,5 @@
-// 待取件快递页面：上面 Muse 粘贴当天待取件的留言内容，加密后打开 GitHub 新建 issue；下面显示最新一条（开锁后解密）。
+// 待取件快递页面：上面 Muse 粘贴当天待取件的留言内容，加密后打开 GitHub 新建 issue；
+// 下面按谁提供的（小miu、lulu）分段，各显示最新一条（开锁后解密）。
 // ?me=miu / ?me=lulu 时署名用对应的名字；?view=list 只显示列表（房子里点快递盒时用）
 import { unlock, encrypt } from "./lock.js";
 import { loadParcels, cachedSnap, cityColor, arrivedAgo, repoUrl } from "./parcel-data.js";
@@ -25,28 +26,38 @@ function fmtTime(iso) {
   return d.getFullYear() + "-" + pad(d.getMonth() + 1) + "-" + pad(d.getDate()) + " " + pad(d.getHours()) + ":" + pad(d.getMinutes());
 }
 
-function render(snap, note) {
+// sets：每个来源（小miu、lulu）一项，各自一段：先一行“谁 什么时候更新、几件”，下面是它的快递
+function render(sets, note) {
   var list = $("list");
   list.innerHTML = "";
-  if (!snap) { $("status").textContent = note || "还没有待取件的留言。"; return; }
-  var when = (snap.who || "") + " " + fmtTime(snap.created_at) + " 更新（#" + snap.number + "）";
-  if (snap.bad) { $("status").textContent = note || when + "：这条解不开（可能是改密码前留的），请重新留言一次。"; return; }
-  $("status").textContent = note || (snap.parcels.length ? when + "：共 " + snap.parcels.length + " 件待取" : when + "：没有待取件。") +
-    (snap.plain ? "（这条没加密，GitHub 上谁都看得到，下次请用上面的输入框留言）" : "");
-  snap.parcels.forEach(function (p) {
-    var li = el("li", "parcel");
-    li.style.setProperty("--c", cityColor(p.city));
-    if (p.city) li.appendChild(el("span", "city", p.city));
-    if (p.code) li.appendChild(el("div", "code", "取件码 " + p.code));
-    var dl = el("dl");
-    [["取件地址", p.place], ["到件时间", p.arrived && arrivedAgo(p.arrived)], ["物品", p.item], ["其他", p.other]].forEach(function (f) {
-      if (!f[1]) return;
-      dl.appendChild(el("dt", null, f[0]));
-      dl.appendChild(el("dd", null, f[1]));
+  if (!sets) { $("status").textContent = note || "还没有待取件的留言。"; return; }
+  var total = 0;
+  sets.forEach(function (set) {
+    var snap = set.snap, name = set.source.who;
+    var head = el("li", "src");
+    list.appendChild(head);
+    if (!snap) { head.textContent = name + "：还没有待取件的留言。"; return; }
+    var when = name + " " + fmtTime(snap.created_at) + " 更新（#" + snap.number + "）";
+    if (snap.bad) { head.textContent = when + "：这条解不开（可能是改密码前留的），请重新留言一次。"; return; }
+    head.textContent = (snap.parcels.length ? when + "：共 " + snap.parcels.length + " 件待取" : when + "：没有待取件。") +
+      (snap.plain ? "（这条没加密，GitHub 上谁都看得到，下次请用上面的输入框留言）" : "");
+    total += snap.parcels.length;
+    snap.parcels.forEach(function (p) {
+      var li = el("li", "parcel");
+      li.style.setProperty("--c", cityColor(p.city));
+      if (p.city) li.appendChild(el("span", "city", p.city));
+      if (p.code) li.appendChild(el("div", "code", "取件码 " + p.code));
+      var dl = el("dl");
+      [["取件地址", p.place], ["到件时间", p.arrived && arrivedAgo(p.arrived)], ["物品", p.item], ["其他", p.other]].forEach(function (f) {
+        if (!f[1]) return;
+        dl.appendChild(el("dt", null, f[0]));
+        dl.appendChild(el("dd", null, f[1]));
+      });
+      if (dl.children.length) li.appendChild(dl);
+      list.appendChild(li);
     });
-    if (dl.children.length) li.appendChild(dl);
-    list.appendChild(li);
   });
+  $("status").textContent = note || "一共 " + total + " 件待取";
 }
 
 var key = await unlock();

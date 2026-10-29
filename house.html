@@ -93,7 +93,7 @@
     import { together, stopTogether, TOGETHER } from "./pet-together.js";
     import { progressGroup } from "./glb-fetch.js";
     import { unlock } from "./lock.js";
-    import { loadParcels, cityIn } from "./parcel-data.js";
+    import { loadParcels } from "./parcel-data.js";
     import { makeParcelBoxes } from "./parcel-boxes.js";
     import { HOUSE as LAYOUT, PHOTO_SLOTS, placeInHouse } from "./layout.js";
     import { loadLockedPhoto, makePhotoFrame } from "./photo-frame.js";
@@ -189,20 +189,17 @@
     refreshCalendars();
     setInterval(refreshCalendars, 30 * 60 * 1000);
 
-    // 待取件快递（Muse 最新一次 [快递] 留言里的）：玄关后墙墙根摆对应个数的快递盒（颜色按城市），点任意一个显示全部待取件
-    // 按城市分两摞，位置和城市在 layout.js 的 parcels（mine 日历下面、hers 天气下面）；刷新时只换里面的箱子
-    var parcelPiles = ["mine", "hers"].map(function (id) {
-      return { spec: LAYOUT.parcels[id], group: placeInHouse(house, new THREE.Group(), LAYOUT.parcels[id], "parcel") };
-    });
+    // 待取件快递（小miu、lulu 各自最新一次 [快递] 留言里的）：玄关后墙墙根摆对应个数的快递盒（颜色按城市），点任意一个显示全部待取件
+    // 按谁提供的分两摞，位置在 layout.js 的 parcels（mine 小miu 的在日历下面、hers lulu 的在天气下面）；刷新时只换里面的箱子
+    var parcelPiles = {};
+    Object.keys(LAYOUT.parcels).forEach(function (id) { parcelPiles[id] = placeInHouse(house, new THREE.Group(), LAYOUT.parcels[id], "parcel"); });
     function refreshParcels() {
-      return loadParcels(key).then(function (snap) {
-        var all = snap ? snap.parcels : [];
-        parcelPiles.forEach(function (pile, i) {
-          pile.group.clear();
-          pile.group.add(makeParcelBoxes(all.filter(function (p) {
-            var hit = parcelPiles.some(function (q) { return cityIn(p.city, q.spec.cities); });
-            return hit ? !!cityIn(p.city, pile.spec.cities) : i === 0; // 没列出的城市放第一摞（mine）
-          })));
+      return loadParcels(key).then(function (sets) {
+        sets.forEach(function (set) {
+          var id = set.source.id;
+          if (!parcelPiles[id]) return;
+          parcelPiles[id].clear();
+          parcelPiles[id].add(makeParcelBoxes(set.snap ? set.snap.parcels : []));
         });
       }).catch(function (e) { console.warn("快递加载失败：", e.message); });
     }

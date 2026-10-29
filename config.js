@@ -30,8 +30,14 @@ window.BOARD_CONFIG = {
     check: "ElMbhHRQRlhuyro1a0WaHesr9nAttzZjv4uO4sAa+jE=",
   },
 
-  // 待取件快递：Muse 每天发一条标题以 parcelPrefix 开头的 issue 列出当天待取件，只显示最新一条（格式见 parcel-data.js）
+  // 待取件快递：Muse 每天发一条标题以 parcelPrefix 开头的 issue 列出当天待取件（格式见 parcel-data.js）。
+  // 按发帖账号分来源，每个来源只用它最新的一条：小miu（gcy2016）提供噜噜小兵的，lulu（xy123646）提供噜噜大王的。
+  // id 对应 layout.js 里 parcels 的那一摞（mine 日历下面、hers 天气下面）
   parcelPrefix: "[快递]",
+  parcelSources: [
+    { id: "mine", login: "gcy2016", who: "小miu" },
+    { id: "hers", login: "xy123646", who: "lulu" },
+  ],
   // 明天的天气预报：Muse 发标题以 weatherPrefix 开头的 issue（格式见 issue #94、weather-data.js）。
   // 按发帖账号分来源，每个来源只用它最新的一条：小miu（gcy2016）发重庆，lulu（xy123646）发武汉。
   // 岛上的天空一次只显示一个来源的天气，主页右上角可以切换（id 记在本机）；天气牌上所有来源都显示。
