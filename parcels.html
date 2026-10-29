@@ -13,6 +13,7 @@
     .parcel dt { color: var(--muted); }
     .parcel dd { margin: 0; word-break: break-word; white-space: pre-wrap; }
     .list-only header, .list-only #compose { display: none; }
+    .list-only .list-head { padding-right: 52px; } /* 让出右上角，house.html 里的关闭叉叠在 iframe 上面 */
   </style>
   <script>if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js"); // 本地缓存，见 sw.js</script>
 </head>
