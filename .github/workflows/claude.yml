@@ -20,6 +20,7 @@ permissions:
   contents: write
   issues: write
   pull-requests: write
+  pages: write # 小号推了 main 之后要手动请 GitHub Pages 重新发布网页
 
 concurrency:
   group: claude-lulu
@@ -161,6 +162,7 @@ jobs:
       - name: git 身份
         if: env.MODE == 'full'
         run: |
+          echo "MAIN0=$(git ls-remote origin refs/heads/main | cut -f1)" >> "$GITHUB_ENV"
           git config --global user.name "github-actions[bot]"
           git config --global user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
@@ -213,6 +215,15 @@ jobs:
             2. 要做文件的，放进 outputs/files/，文件名只用英文字母、数字、-、_、.（不要空格和中文）。做 PPT 可以 pip install python-pptx。地址、电话、证件号、密码等隐私内容不要写进文件。
             3. 把给 lulu 的回复正文写进 outputs/reply.md：中文、客气简洁、纯文字（留言板不渲染 Markdown，不要用 #、**、表格）。不用写署名、不用写「回复 #编号」、不用写文件链接，这些会自动加上。要求不清楚就在回复里问她。
             4. 不要提交、推送，也不要在 GitHub 上发帖或评论，发帖由后面的步骤完成。
+
+      # 用工作流自带令牌推的提交不会自动触发 GitHub Pages 发布，main 有变化就手动请它重新发布一次（仓库没开 Pages 的忽略）
+      - name: 重新发布网页
+        if: always() && env.MODE == 'full'
+        run: |
+          now=$(git ls-remote origin refs/heads/main | cut -f1)
+          if [ -n "$MAIN0" ] && [ "$now" != "$MAIN0" ]; then
+            gh api -X POST "repos/${{ github.repository }}/pages/builds" && echo "已请求 Pages 重新发布" || echo "没开 Pages 或请求失败，跳过"
+          fi
 
       - name: 文件推到文件分支
         id: files
