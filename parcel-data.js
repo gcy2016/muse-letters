@@ -35,7 +35,10 @@ function memberName(login) {
 // 没在 config 里定颜色的城市：按名字从这几种里固定挑一个（同一个城市永远同一个颜色）
 var SPARE = ["#3fa66b", "#e39b2d", "#8a62c9", "#d4578f", "#2fa6a6", "#7a8b3a"];
 export function cityColor(city) {
+  city = String(city || "").trim();
   if (cfg.cityColors[city]) return cfg.cityColors[city];
+  // 写成“武汉市”“湖北武汉”“武汉·菜鸟驿站”这类也认成配置里的城市，颜色不变
+  for (var k in cfg.cityColors) if (city.indexOf(k) >= 0) return cfg.cityColors[k];
   var h = 0;
   for (var i = 0; i < city.length; i++) h = (h * 31 + city.charCodeAt(i)) >>> 0;
   return SPARE[h % SPARE.length];
@@ -55,7 +58,7 @@ export function parseParcels(body) {
       cur.code = mm[1];
     } else if ((mm = line.match(/^(?:取件)?(?:地址|地点)\s*[：:]\s*(.*)$/))) {
       cur.place = mm[1];
-    } else if ((mm = line.match(/^(?:到件|到达|到店|入库)时间\s*[：:]\s*(.*)$/))) {
+    } else if ((mm = line.match(/^(?:到件|到站|到达|到店|到货|入库|入站)(?:时间)?\s*[：:]\s*(.*)$/))) {
       cur.arrived = mm[1];
     } else if ((mm = line.match(/^物品\s*[：:]\s*(.*)$/))) {
       cur.item = mm[1];
