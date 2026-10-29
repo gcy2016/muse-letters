@@ -14,6 +14,25 @@ PHASE = sys.argv[-1] if len(sys.argv) > 1 and sys.argv[-1] in ("split",) else "a
 # ---------- 1. 打开方案 B，把一整块网格按位置拆开 ----------
 bpy.ops.wm.open_mainfile(filepath=os.path.join(SRC, "living-room.blend"))
 body = bpy.data.objects["living-room_body"]
+
+# 左墙上的山水画删掉了（见下面 classify），墙面贴图里烘焙的画框影子也抹掉：用这块周围一圈的颜色从四边往里插值补上
+def erase_painting_shadow():
+    im = bpy.data.images["living-room_body_basecolor"]
+    W, H = im.size
+    px = [0.0] * (W * H * 4); im.pixels.foreach_get(px)
+    c0, c1, r0, r1 = 714, 796, 678, 738   # 影子在贴图里的范围（像素，含边上的虚影），由墙面 UV 算出
+    def get(c, r, k): return px[(r * W + c) * 4 + k]
+    out = {}
+    for r in range(r0 + 1, r1):
+        for c in range(c0 + 1, c1):
+            s, t = (c - c0) / (c1 - c0), (r - r0) / (r1 - r0)
+            for k in range(3):
+                L, R, B, T = get(c0, r, k), get(c1, r, k), get(c, r0, k), get(c, r1, k)
+                corners = (1 - s) * (1 - t) * get(c0, r0, k) + s * (1 - t) * get(c1, r0, k) + (1 - s) * t * get(c0, r1, k) + s * t * get(c1, r1, k)
+                out[(r * W + c) * 4 + k] = (1 - s) * L + s * R + (1 - t) * B + t * T - corners
+    for i, v in out.items(): px[i] = v
+    im.pixels.foreach_set(px); im.update(); im.pack()
+erase_painting_shadow()
 bm = bmesh.new(); bm.from_mesh(body.data); bm.verts.ensure_lookup_table(); bm.faces.ensure_lookup_table()
 
 # 互相连着的面算一个零件
@@ -37,6 +56,7 @@ def classify(mn, mx):
     if mx[2] <= 0.205:
         if mn[2] < 0.155: return "drop"
         return "floor" if d[0] > 3.5 or d[1] > 3.5 else "rug"   # 小块的是地毯边、灯座
+    if -1.86 < mn[0] < -1.82 and mn[2] > 1.8 and mx[2] < 2.4 and mn[1] > -0.47 and mx[1] < 0.47: return "drop"  # 左墙上的山水画：那里挂合影（layout.js 的 photoLiving）
     if mn[0] < -1.82 and d[0] < 0.2: return "wallL"
     if mx[1] > 1.84 and d[1] < 0.2: return "wallB"
     if d[0] > 3.5 or d[1] > 3.5: return "struct"
