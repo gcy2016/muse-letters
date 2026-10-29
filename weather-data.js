@@ -61,9 +61,11 @@ export function parseWeather(body) {
     else if ((mm = line.match(/^提醒\s*[：:]\s*(.*)$/))) cur.tip = mm[1];
     else cur.other = cur.other ? cur.other + "\n" + line : line;
   });
-  // 预报日期已经过去（今天比它晚）：过期
+  // 预报日期就是今天或已经过去（过了零点还没有新预报）：过期；正好是今天的，牌子上改叫“今天”
   var today = new Date(), ymd = today.getFullYear() + "-" + pad(today.getMonth() + 1) + "-" + pad(today.getDate());
-  w.stale = !!w.date && /^\d{4}-\d{1,2}-\d{1,2}$/.test(w.date) && normDate(w.date) < ymd;
+  var okDate = !!w.date && /^\d{4}-\d{1,2}-\d{1,2}$/.test(w.date);
+  w.stale = okDate && normDate(w.date) <= ymd;
+  w.isToday = okDate && normDate(w.date) === ymd;
   return w;
 }
 function pad(n) { return (n < 10 ? "0" : "") + n; }
@@ -99,7 +101,7 @@ function merge(found) {
     w.sources.push({ id: src.id, city: src.city, who: src.who, has: !!(snap && snap.places.length), url: it ? it.url : "" });
     if (!snap) return;
     snap.places.forEach(function (p) {
-      w.places.push(Object.assign(p, { src: src.id, city: src.city, date: snap.date, stale: snap.stale, published: snap.published, source: snap.source, url: it.url, note: snap.other }));
+      w.places.push(Object.assign(p, { src: src.id, city: src.city, date: snap.date, stale: snap.stale, isToday: snap.isToday, published: snap.published, source: snap.source, url: it.url, note: snap.other }));
     });
   });
   return w;

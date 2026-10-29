@@ -80,9 +80,9 @@ function roundRect(g, x, y, w, h, r) {
   g.beginPath(); g.moveTo(x + r, y); g.arcTo(x + w, y, x + w, y + h, r); g.arcTo(x + w, y + h, x, y + h, r); g.arcTo(x, y + h, x, y, r); g.arcTo(x, y, x + w, y, r); g.closePath();
 }
 function temp(d) { return d && d.lo !== null ? d.lo + "~" + d.hi + "°" : ""; }
-function dateLabel(date) {
-  var p = (date || "").split("-");
-  return p.length === 3 ? "明天 " + (+p[1]) + "/" + (+p[2]) : "明天";
+function dateLabel(date, isToday) {
+  var p = (date || "").split("-"), day = isToday ? "今天" : "明天";
+  return p.length === 3 ? day + " " + (+p[1]) + "/" + (+p[2]) : day;
 }
 
 // ---------- 3D 天气牌 ----------
@@ -135,7 +135,7 @@ export function makeWeatherBoard(opts) {
     g.textAlign = "left";
     g.font = "bold 60px 'PingFang SC','Microsoft YaHei',sans-serif";
     var fresh = wx.places.filter(function (p) { return !p.stale; })[0] || wx.places[0];
-    g.fillText(dateLabel(fresh.date), 40, 62);
+    g.fillText(dateLabel(fresh.date, fresh.isToday), 40, 62);
     if (wx.sample) {
       g.textAlign = "right"; g.font = "42px 'PingFang SC','Microsoft YaHei',sans-serif";
       g.fillStyle = "#e8f3ff"; g.fillText("示例数据", W - 40, 62); g.fillStyle = "#ffffff";
@@ -192,8 +192,8 @@ export function weatherDetail(wx, error) {
   wx.places.forEach(function (p) {
     var card = mk("div", { className: "wx-place" }, [mk("h4", { textContent: p.name + (p.who ? "　" + p.who : "") + (p.date ? "　" + p.date : "") })]);
     if (p.stale) card.append(mk("div", { className: "wx-warn", textContent: "预报已过期，还没有新的预报。" }));
-    card.append(dayRow("明天", p.tomorrow, true) || mk("div", { textContent: "（没有明天的预报）" }));
-    var after = dayRow("后天", p.after);
+    card.append(dayRow(p.isToday ? "今天" : "明天", p.tomorrow, true) || mk("div", { textContent: "（没有明天的预报）" }));
+    var after = dayRow(p.isToday ? "明天" : "后天", p.after);
     if (after) card.append(after);
     if (p.air) card.append(mk("div", { className: "wx-line", textContent: "空气：" + p.air }));
     if (p.tip) card.append(mk("div", { className: "wx-tip", textContent: p.tip }));
