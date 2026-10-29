@@ -8,10 +8,11 @@
 //   【重庆】
 //   取件码：3-2-1024
 //   取件地址：小区东门菜鸟驿站
+//   到件时间：2026-10-29 09:30
 //   物品：衣服
 //
 //   import { loadParcels, cityColor } from "./parcel-data.js";
-//   var snap = await loadParcels(key); // { who, created_at, url, number, parcels: [{ city, code, place, item, other }], plain, bad } 或 null（还没留过）
+//   var snap = await loadParcels(key); // { who, created_at, url, number, parcels: [{ city, code, place, arrived, item, other }], plain, bad } 或 null（还没留过）
 //   plain：这条没加密（直接在 GitHub 上手写的），照样显示；bad：解不开（多半是改密码前留的）
 import { decrypt } from "./lock.js";
 import { recentIssues } from "./gh-issues.js";
@@ -47,13 +48,15 @@ export function parseParcels(body) {
     var line = raw.trim(), mm;
     if (!line || line === "Muse留言" || /^署名[：:]/.test(line)) return;
     if ((mm = line.match(/^[【\[]\s*([^】\]]*?)\s*[】\]]\s*(.*)$/))) {
-      parcels.push(cur = { city: mm[1], code: "", place: "", item: "", other: mm[2] });
+      parcels.push(cur = { city: mm[1], code: "", place: "", arrived: "", item: "", other: mm[2] });
     } else if (!cur) {
       return; // 第一个【城市】之前的话（比如“今天没有待取件”）不算快递
     } else if ((mm = line.match(/^取件码\s*[：:]\s*(.*)$/))) {
       cur.code = mm[1];
     } else if ((mm = line.match(/^(?:取件)?(?:地址|地点)\s*[：:]\s*(.*)$/))) {
       cur.place = mm[1];
+    } else if ((mm = line.match(/^(?:到件|到达|到店|入库)时间\s*[：:]\s*(.*)$/))) {
+      cur.arrived = mm[1];
     } else if ((mm = line.match(/^物品\s*[：:]\s*(.*)$/))) {
       cur.item = mm[1];
     } else {
