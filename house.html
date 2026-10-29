@@ -191,7 +191,7 @@
 
     // 待取件快递（Muse 最新一次 [快递] 留言里的）：玄关门口摆对应个数的快递盒（颜色按城市），点任意一个显示全部待取件
     // 位置在 layout.js 的 parcels；整组交给房子管（跟着玄关显示隐藏），刷新时只换里面的箱子
-    var parcelGroup = placeInHouse(house, new THREE.Group(), LAYOUT.parcels);
+    var parcelGroup = placeInHouse(house, new THREE.Group(), LAYOUT.parcels, "parcel");
     function refreshParcels() {
       return loadParcels(key).then(function (snap) {
         parcelGroup.clear();
@@ -342,14 +342,6 @@
       var rect = canvas.getBoundingClientRect();
       pointer.set(((e.clientX - rect.left) / rect.width) * 2 - 1, -((e.clientY - rect.top) / rect.height) * 2 + 1);
       raycaster.setFromCamera(pointer, camera);
-      // 快递盒不在房子模型里，单独判断：比房子里先碰到的东西（墙、家具）更近才算点中
-      if (parcelGroup && parcelGroup.visible) {
-        var ph = raycaster.intersectObject(parcelGroup, true)[0];
-        if (ph) {
-          var first = raycaster.intersectObject(house.root, true).filter(function (x) { return shown(x.object); })[0];
-          if (!first || ph.distance < first.distance) return { id: "parcel", object: ph.object, point: ph.point };
-        }
-      }
       return house.pick(raycaster);
     }
     function shown(o) {
