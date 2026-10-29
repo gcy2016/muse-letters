@@ -27,11 +27,12 @@
     <section class="card" id="compose">
       <h2>留言更新待取件</h2>
       <form id="form">
-        <label>今天全部待取件（每件以【城市】开头，下面写取件码、取件地址、物品；没有就写“今天没有待取件”）
+        <label>今天全部待取件（每件以【城市】开头，下面写取件码、取件地址、到件时间、物品；没有就写“今天没有待取件”）
           <textarea id="content" rows="12" required></textarea>
         </label>
         <p class="hint">点“加密并留言”后，内容会用大门锁密码加密，然后打开 GitHub 的新建 issue 页面（已经填好），在那个页面点 <b>Create</b> 就发出了（需要先登录 GitHub）。</p>
         <button type="submit" id="send">加密并留言</button>
+        <button type="button" id="clear" class="ghost">一键清空</button>
         <p id="send-status" class="status"></p>
       </form>
     </section>

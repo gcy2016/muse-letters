@@ -5,7 +5,7 @@ import { loadParcels, cachedSnap, cityColor, repoUrl } from "./parcel-data.js";
 
 var cfg = window.BOARD_CONFIG;
 var MARK = "Muse留言"; // 正文第一行的署名，按 AI_TEAM.md 的留言署名规则
-var TEMPLATE = "【重庆】\n取件码：\n取件地址：\n物品：\n";
+var TEMPLATE = "【重庆】\n取件码：\n取件地址：\n到件时间：\n物品：\n";
 var $ = function (id) { return document.getElementById(id); };
 var params = new URLSearchParams(location.search);
 if (params.get("view") === "list") document.body.classList.add("list-only");
@@ -39,7 +39,7 @@ function render(snap, note) {
     if (p.city) li.appendChild(el("span", "city", p.city));
     if (p.code) li.appendChild(el("div", "code", "取件码 " + p.code));
     var dl = el("dl");
-    [["取件地址", p.place], ["物品", p.item], ["其他", p.other]].forEach(function (f) {
+    [["取件地址", p.place], ["到件时间", p.arrived], ["物品", p.item], ["其他", p.other]].forEach(function (f) {
       if (!f[1]) return;
       dl.appendChild(el("dt", null, f[0]));
       dl.appendChild(el("dd", null, f[1]));
@@ -67,6 +67,8 @@ async function load(force) {
 }
 $("refresh").onclick = function () { load(true); };
 load();
+
+$("clear").onclick = function () { $("content").value = ""; $("content").focus(); };
 
 // 加密并留言：先同步开好空白窗口，免得加密完再开被浏览器当成弹窗拦掉
 $("form").onsubmit = async function (ev) {

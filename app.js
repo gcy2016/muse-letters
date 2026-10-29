@@ -258,6 +258,7 @@
     window.open(url, "_blank", "noopener");
   };
 
+  $("clear").onclick = function () { $("content").value = ""; $("content").focus(); };
   $("refresh").onclick = function () { load(true); };
   $("more").onclick = loadMore;
   load();
