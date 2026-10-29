@@ -11,7 +11,7 @@
 //   到件时间：2026-10-29 09:30
 //   物品：衣服
 //
-//   import { loadParcels, cityColor } from "./parcel-data.js";
+//   import { loadParcels, cityColor, cityIn, arrivedAgo } from "./parcel-data.js";
 //   var snap = await loadParcels(key); // { who, created_at, url, number, parcels: [{ city, code, place, arrived, item, other }], plain, bad } 或 null（还没留过）
 //   plain：这条没加密（直接在 GitHub 上手写的），照样显示；bad：解不开（多半是改密码前留的）
 import { decrypt } from "./lock.js";
@@ -34,11 +34,17 @@ function memberName(login) {
 
 // 没在 config 里定颜色的城市：按名字从这几种里固定挑一个（同一个城市永远同一个颜色）
 var SPARE = ["#3fa66b", "#e39b2d", "#8a62c9", "#d4578f", "#2fa6a6", "#7a8b3a"];
+// 城市是不是列表里的某一个：写成“武汉市”“湖北武汉”“武汉·菜鸟驿站”这类也算；返回对上的那个，没对上返回 null
+export function cityIn(city, list) {
+  city = String(city || "").trim();
+  if (list.indexOf(city) >= 0) return city;
+  for (var i = 0; i < list.length; i++) if (city.indexOf(list[i]) >= 0) return list[i];
+  return null;
+}
 export function cityColor(city) {
   city = String(city || "").trim();
-  if (cfg.cityColors[city]) return cfg.cityColors[city];
-  // 写成“武汉市”“湖北武汉”“武汉·菜鸟驿站”这类也认成配置里的城市，颜色不变
-  for (var k in cfg.cityColors) if (city.indexOf(k) >= 0) return cfg.cityColors[k];
+  var k = cityIn(city, Object.keys(cfg.cityColors));
+  if (k) return cfg.cityColors[k];
   var h = 0;
   for (var i = 0; i < city.length; i++) h = (h * 31 + city.charCodeAt(i)) >>> 0;
   return SPARE[h % SPARE.length];
@@ -67,6 +73,21 @@ export function parseParcels(body) {
     }
   });
   return parcels;
+}
+
+// 到件时间 → “今天”“3天前”（按北京时间的日期算，不写具体日期）。
+// 认“2026-10-29 09:30”“10-29”“2026/10/29”“10月29日”这些写法；没写年份的按最近一次的这一天算；认不出就原样返回
+export function arrivedAgo(s) {
+  s = String(s || "").trim();
+  var m = s.match(/^(?:(\d{4})\s*[-/.年]\s*)?(\d{1,2})\s*[-/.月]\s*(\d{1,2})/);
+  if (!m) return s;
+  var today = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Shanghai", year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date());
+  var t = Date.parse(today + "T00:00:00Z"), y = m[1] ? +m[1] : +today.slice(0, 4);
+  var d = Date.UTC(y, +m[2] - 1, +m[3]);
+  if (!m[1] && d > t) d = Date.UTC(y - 1, +m[2] - 1, +m[3]);
+  var n = Math.round((t - d) / 86400000);
+  if (isNaN(n)) return s;
+  return n <= 0 ? "今天" : n + "天前";
 }
 
 var CACHE_KEY = "muse-parcels-cache:" + owner + "/" + repo;
