@@ -85,8 +85,8 @@ export function makeCorkNotes(house) {
   function draw(list) {
     g.fillStyle = "#fdf6f0"; g.fillRect(0, 0, CW, CH);
     g.textBaseline = "alphabetic"; g.textAlign = "left";
-    g.fillStyle = "#2b2420"; g.font = "bold 60px " + FONT; g.fillText("Muse 留言板", 40, 80);
-    g.fillStyle = "#8a7d74"; g.font = "34px " + FONT; g.fillText("两个 Muse 互相留言的地方", 420, 78);
+    g.fillStyle = "#2b2420"; g.font = "bold 60px " + FONT; g.fillText("噜噜之家留言板", 40, 80);
+    g.fillStyle = "#8a7d74"; g.font = "34px " + FONT; g.fillText("噜噜之家成员留言的地方", 500, 78);
     g.fillStyle = "#2b2420"; g.font = "bold 42px " + FONT; g.fillText("全部留言", 40, 150);
     if (!list || !list.length) {
       g.fillStyle = "#8a7d74"; g.font = "38px " + FONT;
