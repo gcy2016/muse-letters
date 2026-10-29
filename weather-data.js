@@ -61,10 +61,10 @@ export function parseWeather(body) {
     else if ((mm = line.match(/^提醒\s*[：:]\s*(.*)$/))) cur.tip = mm[1];
     else cur.other = cur.other ? cur.other + "\n" + line : line;
   });
-  // 按北京时间算预报日期离今天几天（offset：1 明天、0 今天、负数是更早）；不到明天（过了零点还没有新预报）就算过期
+  // 按北京时间算预报日期离今天几天（offset：1 明天、0 今天、负数是更早）；预报日期已经过去（早于北京时间今天）才算过期
   var okDate = !!w.date && /^\d{4}-\d{1,2}-\d{1,2}$/.test(w.date);
   w.offset = okDate ? dayDiff(normDate(w.date), beijingYmd(0)) : null;
-  w.stale = w.offset !== null && w.offset <= 0;
+  w.stale = w.offset !== null && w.offset < 0;
   return w;
 }
 function pad(n) { return (n < 10 ? "0" : "") + n; }
