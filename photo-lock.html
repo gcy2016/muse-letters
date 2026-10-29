@@ -38,6 +38,7 @@
 
   var slot = document.getElementById("slot"), status = document.getElementById("status");
   Object.keys(PHOTO_SLOTS).forEach(function (id) {
+    if (PHOTO_SLOTS[id].plain) return; // 明文照片不用加密
     slot.append(Object.assign(document.createElement("option"), { value: id, textContent: PHOTO_SLOTS[id].label }));
   });
   document.getElementById("file").onchange = async function (e) {

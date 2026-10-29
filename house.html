@@ -96,7 +96,7 @@
     import { loadParcels } from "./parcel-data.js";
     import { makeParcelBoxes } from "./parcel-boxes.js";
     import { HOUSE as LAYOUT, PHOTO_SLOTS, placeInHouse } from "./layout.js";
-    import { loadLockedPhoto, makePhotoFrame } from "./photo-frame.js";
+    import { loadLockedPhoto, loadPhoto, makePhotoFrame } from "./photo-frame.js";
     import { startTravelAlbum } from "./travel-album.js";
     import { getWeather } from "./weather-data.js";
     import { makeWeatherBoard, weatherDetail, WEATHER_CSS } from "./weather-board.js";
@@ -147,10 +147,10 @@
     scene.add(house.root);
     // 旅行相册（travel-album.js）：客厅电视随机放照片，客厅墙上挂相册的点亮地图
     var tv = startTravelAlbum(house);
-    // 墙上的加密照片（photo-lock.html 用大门锁密码加密）：有文件就挂上带木框、卡纸的相框，位置见 layout.js
+    // 墙上的照片（一般是 photo-lock.html 用大门锁密码加密的，plain 的是明文）：有文件就挂上带木框、卡纸的相框，位置见 layout.js
     Object.keys(PHOTO_SLOTS).forEach(function (id) {
       var slot = PHOTO_SLOTS[id], spec = LAYOUT[slot.spot];
-      loadLockedPhoto(slot.file, key).then(function (img) {
+      (slot.plain ? loadPhoto(slot.file) : loadLockedPhoto(slot.file, key)).then(function (img) {
         if (img) placeInHouse(house, makePhotoFrame(img, spec.width), spec);
       }).catch(function (e) { console.warn("照片加载失败：", e.message); });
     });

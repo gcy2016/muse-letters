@@ -11,6 +11,8 @@
 export var HOUSE = {
   // 客厅电视上方的合影（加密照片，见 PHOTO_SLOTS）：盖住方案 B 原来那幅山水画（宽 0.92、高 0.56、中心离地 1.9）
   photoLiving: { pos: [-4.80, 1.95, -2.0], facing: "+x", width: 0.98 },
+  // 玄关留言板（立式软木板，框顶离地约 1.58）上方、它靠着的那面墙（玄关和书房之间）上：噜噜大王的小猫照片
+  photoCat: { pos: [-1.435, 2.0, 2.2], facing: "+x", width: 0.5 },
   // 客厅和书房之间那面墙（客厅一侧）上的旅行地图挂画
   travelMap: { pos: [-2.6, 1.55, -0.012], facing: "-z", width: 2.0 },
   // 玄关后墙（通往厨房那面）上的两块小屏：门洞右边天气、左边日历；顶边和门洞门楣顶（2.17 米）对齐
@@ -33,9 +35,11 @@ export var ISLAND = {
   lamp: { onHouse: true, pos: [1.2, 1.70, 3.5], facing: "+z", scale: 1.4 },
 };
 
-// 要挂进屋里的加密照片（photo-lock.html 用大门锁密码加密，文件放 assets/house/photos/）
+// 要挂进屋里的照片，文件放 assets/house/photos/。一般用 photo-lock.html 以大门锁密码加密（.enc）；
+// plain: true 的是主人说过不用加密、明文放的照片（.jpg），photo-lock.html 里不列出来
 export var PHOTO_SLOTS = {
   living: { label: "客厅电视上方的相框", file: "assets/house/photos/photo-living.enc", spot: "photoLiving" },
+  cat: { label: "玄关留言板上方的小猫照片", file: "assets/house/photos/lulu-cat.jpg", spot: "photoCat", plain: true },
 };
 
 // 朝向 → 绕竖直轴转的角度（物件做的时候正面朝 +z）

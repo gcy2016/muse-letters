@@ -1,6 +1,7 @@
 // 挂墙的相框：外圈木框、里面一圈白色卡纸、再里面是照片。照片是用大门锁密码加密的文件（photo-lock.html 生成）。
 //   import { loadLockedPhoto, makePhotoFrame } from "./photo-frame.js";
 //   var img = await loadLockedPhoto("assets/house/photos/photo-living.enc", key); // 还没有这个文件、或解不开时返回 null
+//   var img = await loadPhoto("assets/house/photos/lulu-cat.jpg");                // 不用加密的明文照片
 //   var frame = makePhotoFrame(img, 0.98);  // 宽 0.98 米，高按照片比例；正面朝 +z，原点在相框中心
 import * as THREE from "three";
 import { decryptBytes } from "./lock.js";
@@ -10,7 +11,16 @@ export async function loadLockedPhoto(url, key) {
   if (!r.ok) return null; // 还没放照片：先保持原样
   var bytes = await decryptBytes(key, await r.arrayBuffer());
   if (!bytes) { console.warn("照片解不开（大门锁密码改过？）：", url); return null; }
-  var blob = new Blob([bytes], { type: "image/jpeg" });
+  return toImage(new Blob([bytes], { type: "image/jpeg" }));
+}
+
+export async function loadPhoto(url) {
+  var r = await fetch(url, { cache: "no-cache" });
+  if (!r.ok) return null;
+  return toImage(await r.blob());
+}
+
+function toImage(blob) {
   return createImageBitmap ? createImageBitmap(blob) : new Promise(function (ok, bad) {
     var img = new Image(); img.onload = function () { ok(img); }; img.onerror = bad; img.src = URL.createObjectURL(blob);
   });
