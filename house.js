@@ -239,13 +239,14 @@ function makeHouse(root) {
     return best;
   }
   // 往房子里加东西。opts.auto：按位置自动算房间（物件正前方 0.3 米落在哪个房间）和贴着的墙；也可以直接给 room、wall
+  // opts.floor：放在地上的（靠墙根的快递盒），不算挂在墙上，墙剖开削矮时不跟着藏
   function addItem(obj, opts) {
     opts = opts || {};
     var room = opts.room || "", wall = opts.wall || null;
     if (opts.auto) {
       var f = obj.rotation.y, p = obj.position;
       var w = wallBehind(p, f);
-      if (w) wall = w.id;
+      if (w && !opts.floor) wall = w.id;
       room = roomAt(p.x + Math.sin(f) * 0.3, p.z + Math.cos(f) * 0.3) || roomAt(p.x, p.z) || "";
     }
     if (opts.interact) { obj.userData.interact = opts.interact; interactables[opts.interact] = obj; }

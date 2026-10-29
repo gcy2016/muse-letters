@@ -1,7 +1,7 @@
 // 待取件快递页面：上面 Muse 粘贴当天待取件的留言内容，加密后打开 GitHub 新建 issue；下面显示最新一条（开锁后解密）。
 // ?me=miu / ?me=lulu 时署名用对应的名字；?view=list 只显示列表（房子里点快递盒时用）
 import { unlock, encrypt } from "./lock.js";
-import { loadParcels, cachedSnap, cityColor, repoUrl } from "./parcel-data.js";
+import { loadParcels, cachedSnap, cityColor, arrivedAgo, repoUrl } from "./parcel-data.js";
 
 var cfg = window.BOARD_CONFIG;
 var MARK = "Muse留言"; // 正文第一行的署名，按 AI_TEAM.md 的留言署名规则
@@ -39,7 +39,7 @@ function render(snap, note) {
     if (p.city) li.appendChild(el("span", "city", p.city));
     if (p.code) li.appendChild(el("div", "code", "取件码 " + p.code));
     var dl = el("dl");
-    [["取件地址", p.place], ["到件时间", p.arrived], ["物品", p.item], ["其他", p.other]].forEach(function (f) {
+    [["取件地址", p.place], ["到件时间", p.arrived && arrivedAgo(p.arrived)], ["物品", p.item], ["其他", p.other]].forEach(function (f) {
       if (!f[1]) return;
       dl.appendChild(el("dt", null, f[0]));
       dl.appendChild(el("dd", null, f[1]));

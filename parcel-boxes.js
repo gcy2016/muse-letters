@@ -1,14 +1,14 @@
-// 玄关的快递盒：有几件待取件就摆几个一样大的纸箱，在入户门内右侧空地摞起来：
-// 一摞最多 PER_STACK 个，摞满了在旁边另起一摞，最多 STACKS.length 摞（再多只在列表里显示）。
+// 玄关的快递盒：有几件待取件就摆几个一样大的纸箱，靠墙根摞起来：
+// 一摞最多 PER_STACK 个，摞满了在旁边另起一摞，最多 STACKS.length 摞（再多只在列表里显示）。正面（贴面单那面）朝 +z。
 // 箱子颜色按城市（parcel-data.js 的 cityColor），侧面贴白色面单写城市名。
 //   import { makeParcelBoxes } from "./parcel-boxes.js";
 //   var g = makeParcelBoxes(parcels); // g.userData.boxes 是每个箱子，点中箱子时 object.userData.parcel 为真
-//   g 的原点就是第一摞的位置，整组摆在哪由 layout.js（布置表）的 parcels 决定
+//   g 的原点就是第一摞的位置，整组摆在哪由 layout.js（布置表）的 parcels 决定（分两摞：mine、hers）
 import * as THREE from "three";
 import { cityColor } from "./parcel-data.js";
 
-// 每摞相对第一摞的位置 [右, 前]（米）：第二摞在右边，第三摞在第一摞后面；箱子尺寸
-var STACKS = [[0, 0], [0.34, 0], [0, -0.33]];
+// 每摞相对第一摞的位置 [右, 前]（米）：第二摞在左边，第三摞在第一摞前面（第一摞靠墙）；箱子尺寸
+var STACKS = [[0, 0], [-0.34, 0], [0, 0.33]];
 var PER_STACK = 5;
 var W = 0.3, D = 0.24, H = 0.15;
 
@@ -51,9 +51,8 @@ function makeBox(p, n) {
   strip.position.y = h / 2;
   g.add(strip);
   var lw = Math.min(w * 0.38, 0.1);
-  var label = new THREE.Mesh(new THREE.PlaneGeometry(lw * 1.6, lw), labelMat(p.city)); // 面单贴在前面（朝 -z，对着屋里）
-  label.position.set(-w * 0.22, h * 0.5, -d / 2 - 0.002);
-  label.rotation.y = Math.PI;
+  var label = new THREE.Mesh(new THREE.PlaneGeometry(lw * 1.6, lw), labelMat(p.city)); // 面单贴在正面（朝 +z，背对墙）
+  label.position.set(w * 0.22, h * 0.5, d / 2 + 0.002);
   g.add(label);
   var top = new THREE.Mesh(label.geometry, label.material); // 顶面也贴一张，从上往下看也认得出城市
   top.position.set(w * 0.25 + 0.005, h + 0.004, 0);
