@@ -2,7 +2,7 @@
 // 来源按发帖账号分（config.js 的 weatherSources：小miu 发重庆，lulu 发武汉），每个来源只用它最新的一条。
 // 岛上的天空按选中来源“明天”的天气变（主页可切换）；屋里玄关的天气小屏显示所有来源。
 //   import { getWeather, skyKind, skyPlace } from "./weather-data.js";
-//   var w = await getWeather();   // { places: [{ src, city, name, who, tomorrow, after, air, tip, other, date, stale, published, source, url }], sources }
+//   var w = await getWeather();   // { places: [{ src, city, name, who, tomorrow, after, air, tip, other, date, offset, stale, published, source, url }], sources }
 //   网址加 ?wx=demo 用示例数据看效果，?wx=小雨（或任一天气用词）把示例里重庆明天的天气换成这种
 import { recentIssues } from "./gh-issues.js";
 var cfg = window.BOARD_CONFIG;
@@ -61,15 +61,19 @@ export function parseWeather(body) {
     else if ((mm = line.match(/^提醒\s*[：:]\s*(.*)$/))) cur.tip = mm[1];
     else cur.other = cur.other ? cur.other + "\n" + line : line;
   });
-  // 预报日期就是今天或已经过去（过了零点还没有新预报）：过期；正好是今天的，牌子上改叫“今天”
-  var today = new Date(), ymd = today.getFullYear() + "-" + pad(today.getMonth() + 1) + "-" + pad(today.getDate());
+  // 按北京时间算预报日期离今天几天（offset：1 明天、0 今天、负数是更早）；不到明天（过了零点还没有新预报）就算过期
   var okDate = !!w.date && /^\d{4}-\d{1,2}-\d{1,2}$/.test(w.date);
-  w.stale = okDate && normDate(w.date) <= ymd;
-  w.isToday = okDate && normDate(w.date) === ymd;
+  w.offset = okDate ? dayDiff(normDate(w.date), beijingYmd(0)) : null;
+  w.stale = w.offset !== null && w.offset <= 0;
   return w;
 }
 function pad(n) { return (n < 10 ? "0" : "") + n; }
 function normDate(s) { var p = s.split("-"); return p[0] + "-" + pad(+p[1]) + "-" + pad(+p[2]); }
+// 北京时间的日期（YYYY-MM-DD），不看手机或电脑自己的时区；plusDays 往后推几天
+export function beijingYmd(plusDays) {
+  return new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Shanghai", year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date(Date.now() + (plusDays || 0) * 86400000));
+}
+function dayDiff(a, b) { return Math.round((Date.parse(a + "T00:00:00Z") - Date.parse(b + "T00:00:00Z")) / 86400000); }
 
 // 示例（?wx=demo），和 issue #94 里的格式一样，每个来源一条
 var SAMPLE = {
@@ -78,10 +82,7 @@ var SAMPLE = {
   wh: ["预报日期：" + tomorrowYmd(), "发布时间：（示例数据）", "来源：示例", "【武汉】噜噜大王",
     "明天：晴 13~22°C 降水0% 北风3级", "后天：小雨 12~17°C 降水70%", "空气：轻度污染", "提醒：空气一般，少开窗"].join("\n"),
 };
-function tomorrowYmd() {
-  var d = new Date(Date.now() + 86400000);
-  return d.getFullYear() + "-" + pad(d.getMonth() + 1) + "-" + pad(d.getDate());
-}
+function tomorrowYmd() { return beijingYmd(1); }
 export function sampleWeather(word) {
   var w = merge(sources().map(function (src) { return SAMPLE[src.id] ? { body: SAMPLE[src.id], url: "" } : null; }));
   w.sample = true;
@@ -101,7 +102,7 @@ function merge(found) {
     w.sources.push({ id: src.id, city: src.city, who: src.who, has: !!(snap && snap.places.length), url: it ? it.url : "" });
     if (!snap) return;
     snap.places.forEach(function (p) {
-      w.places.push(Object.assign(p, { src: src.id, city: src.city, date: snap.date, stale: snap.stale, isToday: snap.isToday, published: snap.published, source: snap.source, url: it.url, note: snap.other }));
+      w.places.push(Object.assign(p, { src: src.id, city: src.city, date: snap.date, stale: snap.stale, offset: snap.offset, published: snap.published, source: snap.source, url: it.url, note: snap.other }));
     });
   });
   return w;
