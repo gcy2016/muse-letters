@@ -1,8 +1,12 @@
-// 明天的天气预报：Muse 晚上发一条标题以 [天气] 开头的 issue（格式见 issue #94）。
-// 来源按发帖账号分（config.js 的 weatherSources：小miu 发重庆，lulu 发武汉），每个来源只用它最新的一条。
-// 岛上的天空按选中来源“明天”的天气变（主页可切换）；屋里玄关的天气小屏显示所有来源。
-//   import { getWeather, skyKind, skyPlace } from "./weather-data.js";
-//   var w = await getWeather();   // { places: [{ src, city, name, who, tomorrow, after, air, tip, other, date, offset, stale, published, source, url }], sources }
+// 天气：工作流 .github/workflows/weather.yml 每天北京时间约 9 点、14 点、19 点自动查重庆、武汉的天气，
+// 写成 weather-data 分支上的 weather.json（tools/fetch_weather.py，每次都带今天起三天的预报）。
+// 显示哪天：北京时间 19 点（config.js 的 weatherSwitchHour）前显示今天，之后显示明天；手上没有那天的数据就显示“暂未更新”。
+// 自动查的数据里没有那天时，还认 Muse 手动发的 [天气] issue（格式见 issue #94，按发帖账号分来源，各用最新一条），脚本坏了时可以手动补。
+// 岛上的天空按选中城市显示的那天变（主页可切换）；屋里玄关的天气小屏显示所有城市。
+//   import { getWeather, skyKind, skyPlace, showOffset } from "./weather-data.js";
+//   var w = await getWeather();   // { places: [{ src, city, name, who, tomorrow, after, air, tip, other, date, offset, stale, pending, published, source, url }], sources }
+//   places 每个城市一个；tomorrow 是要显示的那天（字段名沿用以前的“明天”，offset 0 今天、1 明天），after 是再往后一天；
+//   pending：那天还没有数据（暂未更新），tomorrow 为 null。showOffset() 现在该显示今天（0）还是明天（1）
 //   网址加 ?wx=demo 用示例数据看效果，?wx=小雨（或任一天气用词）把示例里重庆明天的天气换成这种
 import { recentIssues } from "./gh-issues.js";
 var cfg = window.BOARD_CONFIG;
@@ -75,16 +79,16 @@ export function beijingYmd(plusDays) {
 }
 function dayDiff(a, b) { return Math.round((Date.parse(a + "T00:00:00Z") - Date.parse(b + "T00:00:00Z")) / 86400000); }
 
-// 示例（?wx=demo），和 issue #94 里的格式一样，每个来源一条
-var SAMPLE = {
-  cq: ["预报日期：" + tomorrowYmd(), "发布时间：（示例数据）", "来源：示例", "【重庆】噜噜小兵",
+// 示例（?wx=demo），和 issue #94 里的格式一样，每个来源一条；日期是现在该显示的那天
+function sample() { return {
+  cq: ["预报日期：" + beijingYmd(showOffset()), "发布时间：（示例数据）", "来源：示例", "【重庆】噜噜小兵",
     "明天：小雨转阴 14~18°C 降水80% 东北风2级", "后天：多云 13~19°C 降水20%", "空气：良", "提醒：出门带伞，早晚加件外套"].join("\n"),
-  wh: ["预报日期：" + tomorrowYmd(), "发布时间：（示例数据）", "来源：示例", "【武汉】噜噜大王",
+  wh: ["预报日期：" + beijingYmd(showOffset()), "发布时间：（示例数据）", "来源：示例", "【武汉】噜噜大王",
     "明天：晴 13~22°C 降水0% 北风3级", "后天：小雨 12~17°C 降水70%", "空气：轻度污染", "提醒：空气一般，少开窗"].join("\n"),
-};
-function tomorrowYmd() { return beijingYmd(1); }
+}; }
 export function sampleWeather(word) {
-  var w = merge(sources().map(function (src) { return SAMPLE[src.id] ? { body: SAMPLE[src.id], url: "" } : null; }));
+  var s = sample();
+  var w = merge(sources().map(function (src) { return s[src.id] ? { body: s[src.id], url: "" } : null; }), null);
   w.sample = true;
   if (word && word !== "demo" && WORDS[word] && w.places[0]) {
     w.places[0].tomorrow = parseDay(word + " " + (word.indexOf("雪") >= 0 ? "-3~2°C 降水70%" : "12~18°C 降水60%") + " 北风3级");
@@ -94,16 +98,34 @@ export function sampleWeather(word) {
 
 export function sources() { return cfg.weatherSources || []; }
 
-// 每个来源最新的一条 → 合在一起：places 按来源顺序排，每个地点带上它那条的预报日期、过期与否、链接
-function merge(found) {
-  var w = { places: [], sources: [] };
+// 北京时间几点（0～23）；到 SWITCH_HOUR 点起显示明天
+export var SWITCH_HOUR = cfg.weatherSwitchHour || 19;
+function beijingHour() {
+  return +new Intl.DateTimeFormat("en-US", { timeZone: "Asia/Shanghai", hour: "numeric", hourCycle: "h23" }).format(new Date()) % 24;
+}
+export function showOffset() { return beijingHour() >= SWITCH_HOUR ? 1 : 0; }
+
+// 合在一起：places 按来源顺序排，每个城市一个——先用自动查的（auto，weather.json）里要显示的那天；
+// 没有就用 Muse 发的帖子（found，每个来源最新的一条），但它的预报日期得正好是要显示的那天；都没有就是“暂未更新”
+function merge(found, auto) {
+  var w = { places: [], sources: [] }, off = showOffset(), date = beijingYmd(off), next = beijingYmd(off + 1);
   sources().forEach(function (src, i) {
-    var it = found[i], snap = it ? parseWeather(it.body) : null;
-    w.sources.push({ id: src.id, city: src.city, who: src.who, has: !!(snap && snap.places.length), url: it ? it.url : "" });
-    if (!snap) return;
-    snap.places.forEach(function (p) {
-      w.places.push(Object.assign(p, { src: src.id, city: src.city, date: snap.date, stale: snap.stale, offset: snap.offset, published: snap.published, source: snap.source, url: it.url, note: snap.other }));
-    });
+    var city = auto && (auto.places || []).filter(function (c) { return c.id === src.id; })[0];
+    var day = city && city.days.filter(function (d) { return d.date === date; })[0];
+    var it = found && found[i], snap = it ? parseWeather(it.body) : null;
+    var base = { src: src.id, city: src.city, name: src.city, who: "", date: date, offset: off, stale: false, air: "", tip: "", other: "", note: "", published: "", source: "", url: "" };
+    if (day) {
+      var after = city.days.filter(function (d) { return d.date === next; })[0];
+      w.places.push(Object.assign(base, { tomorrow: parseDay(day.line), after: after ? parseDay(after.line) : null, air: day.air || "", tip: day.tip || "",
+        published: city.updated || "", source: (auto.source || "") + "（每天自动查三次）" }));
+    } else if (snap && snap.places.length && (snap.offset === off || (snap.offset === null && off === 1))) {
+      snap.places.forEach(function (p) {
+        w.places.push(Object.assign(p, { src: src.id, city: src.city, date: snap.date, stale: snap.stale, offset: snap.offset, published: snap.published, source: snap.source, url: it.url, note: snap.other }));
+      });
+    } else {
+      w.places.push(Object.assign(base, { tomorrow: null, after: null, pending: true }));
+    }
+    w.sources.push({ id: src.id, city: src.city, who: src.who, has: !w.places[w.places.length - 1].pending, url: it ? it.url : "" });
   });
   return w;
 }
@@ -114,20 +136,52 @@ export function skyPlace(w, srcId) {
 }
 
 var CACHE_KEY = "muse-weather-cache2:" + owner + "/" + repo;
+function readJSON(key) { try { return JSON.parse(localStorage.getItem(key) || "null"); } catch (e) { return null; } }
+function writeJSON(key, v) { try { localStorage.setItem(key, JSON.stringify(v)); } catch (e) {} }
 // 先给缓存里的（打开就有东西看），再去 GitHub 拿最新的
 export function cachedWeather() {
-  try { var c = JSON.parse(localStorage.getItem(CACHE_KEY) || "null"); return c ? merge(c) : null; } catch (e) { return null; }
+  var c = readJSON(CACHE_KEY), a = readJSON(AUTO_KEY);
+  return c || a ? merge(c, a && a.data) : null;
 }
-// 每个来源最新的一条 [天气]：从全站共用的最近帖子里找（gh-issues.js，不再单独问 GitHub，也不往后翻页）
-export async function loadWeather() {
+
+// 自动查的天气：weather-data 分支上的 weather.json，走 GitHub 接口（raw.githubusercontent.com 国内常打不开）。
+// 和 gh-issues.js 一样省着问：AUTO_FRESH 内用存的；带 ETag 问，没变时 GitHub 回 304，不算次数；问不到就用存的，没存过就是 null（不报错，还能用帖子）
+var AUTO_KEY = "muse-weather-auto:" + owner + "/" + repo;
+var AUTO_FRESH = 10 * 60 * 1000;
+var AUTO_API = "https://api.github.com/repos/" + owner + "/" + repo + "/contents/weather.json?ref=" + (cfg.weatherBranch || "weather-data");
+function loadAuto() {
+  var c = readJSON(AUTO_KEY);
+  if (c && c.data && Date.now() - c.at < AUTO_FRESH) return Promise.resolve(c.data);
+  var headers = { Accept: "application/vnd.github.raw" };
+  if (c && c.etag && c.data) headers["If-None-Match"] = c.etag;
+  return fetch(AUTO_API, { headers: headers, cache: "no-store" }).then(function (r) {
+    if (r.status === 304 && c && c.data) { writeJSON(AUTO_KEY, Object.assign(c, { at: Date.now() })); return c.data; }
+    if (!r.ok) throw new Error("GitHub 返回 " + r.status);
+    return r.json().then(function (data) { writeJSON(AUTO_KEY, { at: Date.now(), etag: r.headers.get("ETag"), data: data }); return data; });
+  }).catch(function (e) {
+    console.warn("自动天气没读到：", e.message);
+    return c && c.data || null;
+  });
+}
+
+// Muse 发的 [天气]：每个来源最新的一条，从全站共用的最近帖子里找（gh-issues.js，不再单独问 GitHub，也不往后翻页）
+async function loadPosts() {
   var src = sources(), found = src.map(function () { return null; });
   (await recentIssues()).forEach(function (it) {
     if (it.pull_request || it.title.indexOf(PREFIX) !== 0) return;
     var i = src.findIndex(function (s2) { return s2.login.toLowerCase() === String(it.user.login).toLowerCase(); });
     if (i >= 0 && !found[i]) found[i] = { number: it.number, url: it.html_url, created_at: it.created_at, body: it.body };
   });
-  try { localStorage.setItem(CACHE_KEY, JSON.stringify(found)); } catch (e) {}
-  return merge(found);
+  writeJSON(CACHE_KEY, found);
+  return found;
+}
+// 两样都读；帖子读不到就用存的，两样都没有才报错
+export async function loadWeather() {
+  var err = null;
+  var found = await loadPosts().catch(function (e) { err = e; return readJSON(CACHE_KEY); });
+  var auto = await loadAuto();
+  if (!auto && !found && err) throw err;
+  return merge(found, auto);
 }
 
 // 页面统一用这个：?wx= 用示例，否则读 GitHub（失败时退回缓存）

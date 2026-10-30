@@ -98,7 +98,7 @@
     import { HOUSE as LAYOUT, PHOTO_SLOTS, placeInHouse } from "./layout.js";
     import { loadLockedPhoto, loadPhoto, makePhotoFrame } from "./photo-frame.js";
     import { startTravelAlbum } from "./travel-album.js";
-    import { getWeather } from "./weather-data.js";
+    import { getWeather, showOffset, beijingYmd } from "./weather-data.js";
     import { makeWeatherBoard, weatherDetail, WEATHER_CSS } from "./weather-board.js";
     import { loadCalendars } from "./calendar-data.js";
     import { makeCalendarBoard } from "./calendar-board.js";
@@ -158,7 +158,7 @@
     var boardUI = mountBoardButton();
     makeCorkNotes(house);
     // 玄关后墙上的小屏：天气、日历各一块，几个人的内容都合在这一块里显示（位置见 layout.js）
-    // 天气小屏：显示明天的天气（weather-data.js），重庆、武汉都有预报时左右两栏；半小时重读一次
+    // 天气小屏：19 点前显示今天、之后显示明天的天气（weather-data.js），重庆、武汉左右两栏；半小时重读一次，到 19 点、0 点马上重算
     var weatherBoard = makeWeatherBoard({ width: LAYOUT.weather.width });
     placeInHouse(house, weatherBoard.group, LAYOUT.weather, "weather");
     var weather = null, weatherError = "";
@@ -168,6 +168,8 @@
     }
     refreshWeather();
     setInterval(refreshWeather, 30 * 60 * 1000);
+    var wxShown = showOffset() + beijingYmd();
+    setInterval(function () { var k = showOffset() + beijingYmd(); if (k !== wxShown) { wxShown = k; refreshWeather(); } }, 60 * 1000);
     var wxStyle = document.createElement("style");
     wxStyle.textContent = WEATHER_CSS + CALENDAR_CSS;
     document.head.appendChild(wxStyle);

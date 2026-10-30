@@ -4,7 +4,7 @@
 //   board.group 放进场景；board.draw(weather)；board.draw(null, "还没有预报") 显示一句话
 //   panel.append(weatherDetail(weather));           // 弹窗里的详情（DOM）
 import * as THREE from "three";
-import { skyKind } from "./weather-data.js";
+import { skyKind, showOffset } from "./weather-data.js";
 
 // ---------- 图标（画在 2D 画布上，s 是图标边长） ----------
 function cloud(g, x, y, s, color) {
@@ -128,7 +128,7 @@ export function makeWeatherBoard(opts) {
     if (!wx || !wx.places.length) {
       g.textAlign = "center";
       g.font = "bold 84px 'PingFang SC','Microsoft YaHei',sans-serif";
-      g.fillText("明天的天气", W / 2, H / 2 - 60);
+      g.fillText(dayName(showOffset()) + "的天气", W / 2, H / 2 - 60);
       g.font = "52px 'PingFang SC','Microsoft YaHei',sans-serif";
       g.fillText(message || "还没有预报", W / 2, H / 2 + 50);
       tex.needsUpdate = true;
@@ -146,6 +146,13 @@ export function makeWeatherBoard(opts) {
     places.forEach(function (p, i) {
       var cx = colW * i + colW / 2, d = p.tomorrow;
       var size = n === 1 ? 300 : 250;
+      if (n > 1 && i > 0) { g.fillStyle = "rgba(255,255,255,0.35)"; g.fillRect(colW * i - 2, 120, 4, H - 160); g.fillStyle = "#ffffff"; }
+      if (p.pending) {
+        g.textAlign = "center";
+        fitText(g, "暂未更新", cx, 330, colW - 40, n === 1 ? 80 : 64, "bold ");
+        fitText(g, p.name, cx, 545, colW - 40, 48);
+        return;
+      }
       drawIcon(g, skyKind(d), cx, 270, size);
       g.textAlign = "center";
       g.font = "bold " + (n === 1 ? 92 : 80) + "px 'PingFang SC','Microsoft YaHei',sans-serif";
@@ -154,7 +161,6 @@ export function makeWeatherBoard(opts) {
       var sub = [p.name, d && d.rain !== null ? "降水" + d.rain + "%" : ""].filter(Boolean).join(" · ");
       fitText(g, sub, cx, 545, colW - 40, 48);
       if (p.stale) { g.fillStyle = "#ffe08a"; g.font = "40px 'PingFang SC','Microsoft YaHei',sans-serif"; g.fillText("预报已过期", cx, 600); g.fillStyle = "#ffffff"; }
-      if (n > 1 && i > 0) { g.fillStyle = "rgba(255,255,255,0.35)"; g.fillRect(colW * i - 2, 120, 4, H - 160); g.fillStyle = "#ffffff"; }
     });
     tex.needsUpdate = true;
   }
@@ -195,6 +201,7 @@ export function weatherDetail(wx, error) {
   wx.places.forEach(function (p) {
     var card = mk("div", { className: "wx-place" }, [mk("h4", { textContent: p.name + (p.who ? "　" + p.who : "") + (p.date ? "　" + p.date : "") })]);
     if (p.stale) card.append(mk("div", { className: "wx-warn", textContent: "预报已过期，还没有新的预报。" }));
+    if (p.pending) { card.append(mk("div", { className: "wx-warn", textContent: "暂未更新（每天约 9 点、14 点、19 点自动查天气）。" })); box.append(card); return; }
     var off = p.offset === null || p.offset === undefined ? 1 : p.offset;
     card.append(dayRow(dayName(off) || "当天", p.tomorrow, true) || mk("div", { textContent: "（没有预报）" }));
     var after = dayRow(dayName(off + 1) || "次日", p.after);
@@ -206,9 +213,6 @@ export function weatherDetail(wx, error) {
     var foot = [p.published ? "发布：" + p.published : "", p.source ? "来源：" + p.source : ""].filter(Boolean).join("　");
     if (foot) card.append(mk("div", { className: "wx-foot", textContent: foot }));
     box.append(card);
-  });
-  (wx.sources || []).forEach(function (s) {
-    if (!s.has) box.append(mk("p", { className: "wx-foot", textContent: s.city + "还没有预报（由 " + s.who + " 提供）。" }));
   });
   if (wx.sample) box.append(mk("p", { className: "wx-foot", textContent: "（示例数据）" }));
   return box;
