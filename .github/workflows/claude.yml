@@ -1,4 +1,4 @@
-# Claude 小号：issue / 评论内容里任何位置写了 /claude（必须带斜杠）时，自动启动 Claude 处理并回复。
+# Claude 小号：issue / 评论内容的第一行（跳过署名）以 /claude 开头时，自动启动 Claude 处理并回复。
 # 规则见 AI_TEAM.md「补充成员说明：Claude 小号」「Claude 小号自动唤醒」，留言板用法见 MUSE.md（第四部分留言规则、第七部分）。
 # 两种权限，按发帖账号分：
 # - gcy2016（噜噜小兵本人，或用这个账号发言的 Muse、GPT、Claude，不限署名、不限是否在留言板）：完整权限，
@@ -33,7 +33,8 @@ env:
 
 jobs:
   # 先判断是不是任务（这一步在 GitHub 机器上跑，不启动 Claude，不花额度）。两种情况算：
-  # 1. 正文或评论里任何位置写了 /claude（不分大小写，必须带斜杠；只写 claude 不算，网址里的 …/claude-code-action 这类也不算）；
+  # 1. 新帖或评论的第一行以 /claude 开头（不分大小写，必须带斜杠）。先跳过署名行、空行、「回复 #编号」表头和引用行，
+  #    再看第一行；正文中间提到 /claude（举例、引用）不算，避免误唤醒；
   # 2. 第一行是「回复 #编号」，而那个编号是 Claude 小号发的帖子（回复 Claude 不用再写 /claude）。
   # 回复小miu / lulu 的帖子不算。lulu 只认留言板新帖，评论只认 gcy2016。
   gate:
@@ -93,8 +94,8 @@ jobs:
                   pass
           while lines and (not lines[0].strip() or re.match(r"回复 #\d+|>", lines[0].strip())):
               lines.pop(0)
-          # 任何位置的 /claude 都算（行首、句中、紧跟中文都行）；前面挨着字母、数字或 . : / - _ 的是网址或路径，不算
-          slash = re.search(r"(?<![A-Za-z0-9_.:/-])/claude", raw, re.I) is not None
+          # 只认第一行（已跳过署名、回复表头）以 /claude 开头；正文中间提到的不算
+          slash = bool(lines) and re.match(r"/claude", lines[0].strip(), re.I) is not None
           print("go=" + ("true" if slash or (to_claude and lines) else "false"))
           print("who=" + re.sub(r"[\r\n]", "", who)[:20])
           print("mode=" + ("full" if login == "gcy2016" else "lulu"))
