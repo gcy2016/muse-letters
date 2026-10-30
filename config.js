@@ -38,9 +38,13 @@ window.BOARD_CONFIG = {
     { id: "mine", login: "gcy2016", who: "小miu" },
     { id: "hers", login: "xy123646", who: "lulu" },
   ],
-  // 明天的天气预报：Muse 发标题以 weatherPrefix 开头的 issue（格式见 issue #94、weather-data.js）。
-  // 按发帖账号分来源，每个来源只用它最新的一条：小miu（gcy2016）发重庆，lulu（xy123646）发武汉。
-  // 岛上的天空一次只显示一个来源的天气，主页右上角可以切换（id 记在本机）；天气牌上所有来源都显示。
+  // 天气：工作流 weather.yml 每天约 9、14、19 点自动查（tools/fetch_weather.py，城市坐标也写在那里，id 和下面对上），
+  // 存在 weatherBranch 分支的 weather.json；weatherSwitchHour 点（北京时间）前显示今天，之后显示明天。
+  // 自动查的没有那天的数据时，还认 Muse 手动发的 weatherPrefix 开头的 issue（格式见 issue #94），按发帖账号分来源：
+  // 小miu（gcy2016）补重庆，lulu（xy123646）补武汉，每个来源只用它最新的一条。
+  // 岛上的天空一次只显示一个城市的天气，主页右上角可以切换（id 记在本机）；天气牌上所有城市都显示。
+  weatherBranch: "weather-data",
+  weatherSwitchHour: 19,
   weatherPrefix: "[天气]",
   weatherSources: [
     { id: "cq", city: "重庆", login: "gcy2016", who: "小miu" },

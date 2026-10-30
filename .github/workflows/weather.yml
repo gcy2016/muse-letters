@@ -1,0 +1,49 @@
+# 自动查天气：每天北京时间约 9 点、14 点、19 点各查一次重庆、武汉的天气（tools/fetch_weather.py，数据来自 Open-Meteo），
+# 写成 weather.json 推到 weather-data 分支（不动 main，网页不用重新发布）。网页读法见 weather-data.js。
+# - GitHub 的定时任务常晚几分钟到几十分钟，所以定在整点前 15 分钟（cron 用 UTC：北京 8:45 = UTC 0:45）。
+# - 19 点那次之前网页就会切到明天：每次查都带今天起三天的预报，19 点那次只是把明天的再刷新一遍。
+# - 在 Actions 页面点 Run workflow 可以马上查一次。
+name: Weather
+
+on:
+  schedule:
+    - cron: "45 0,5,10 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: weather
+  cancel-in-progress: false
+
+env:
+  DATA_BRANCH: weather-data
+
+jobs:
+  fetch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: 查天气，推到数据分支
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          url="https://x-access-token:${GH_TOKEN}@github.com/${{ github.repository }}.git"
+          if git ls-remote --exit-code --heads "$url" "$DATA_BRANCH" >/dev/null; then
+            git clone -q --depth 1 -b "$DATA_BRANCH" "$url" /tmp/wd
+          else
+            git init -q -b "$DATA_BRANCH" /tmp/wd && git -C /tmp/wd remote add origin "$url"
+          fi
+          python3 tools/fetch_weather.py /tmp/wd/weather.json /tmp/new.json
+          cp /tmp/new.json /tmp/wd/weather.json
+          cd /tmp/wd
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add weather.json
+          git commit -q -m "天气 $(TZ=Asia/Shanghai date '+%Y-%m-%d %H:%M')" || { echo "没有变化"; exit 0; }
+          git push -q origin "$DATA_BRANCH"

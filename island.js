@@ -1,14 +1,14 @@
 // 噜噜岛：岛上是噜噜之家（house.js），从外面看盖着屋顶。右下角常驻“留言板”按钮（board-ui.js，有新留言亮红点）；
 // 点房子的门进屋（house.html，从玄关开始看）。门锁：这个浏览器开过锁，门就开着；没开过，点门先输密码。
 // 小岛单位是米，和房子一样。小miu 和 lulu 先只待在房子里。
-// 天气：岛上的天空提前变成明天的天气（weather-fx.js），数据见 weather-data.js；天气牌只在屋里玄关（house.html）
+// 天气：岛上的天空跟着天气变（19 点前今天、之后明天，weather-fx.js），数据见 weather-data.js；天气牌只在屋里玄关（house.html）
 // ?from=house：从屋里出来，镜头停在门口；?wx=小雨 用示例数据看某种天气的效果（?wx=demo 示例原样）
 import * as THREE from "three";
 import { OrbitControls } from "./lib/OrbitControls.js";
 import { loadHouse } from "./house.js";
 import { RoomEnvironment } from "./lib/RoomEnvironment.js";
 import { isUnlocked, unlock } from "./lock.js";
-import { getWeather, skyKind, skyPlace, sources as weatherSources } from "./weather-data.js";
+import { getWeather, skyKind, skyPlace, showOffset, beijingYmd as beijingDay, sources as weatherSources } from "./weather-data.js";
 import { makeWeatherFx } from "./weather-fx.js";
 import { ISLAND as ISLAND_LAYOUT, arrange } from "./layout.js";
 import { mountBoardButton } from "./board-ui.js";
@@ -240,7 +240,7 @@ function cloud(x, y, z) {
 }
 var clouds = [cloud(-20, 16, -20), cloud(16, 19, -26), cloud(26, 14, 8)];
 
-// 天气：天空提前变成明天的天气；半小时重读一次。天空一次只显示一个城市（右上角按钮切换，选择记在本机）
+// 天气：天空 19 点前显示今天、之后显示明天的天气；半小时重读一次，到 19 点、0 点马上重算。天空一次只显示一个城市（右上角按钮切换，选择记在本机）
 // 房子单独打了环境光（见下面加载房子的地方），天暗下来时房子也跟着暗
 var houseEnv = 0.6, houseMats = [];
 function setHouseEnv() { houseMats.forEach(function (m) { m.envMapIntensity = houseEnv; }); }
@@ -267,9 +267,9 @@ function showSky() {
   var p = skyPlace(weather, skySrc);
   fx.set(p ? skyKind(p.tomorrow) : "sun");
   [].forEach.call(skyBar.querySelectorAll("button"), function (b) {
-    var has = !!(weather && weather.places.some(function (q) { return q.src === b.dataset.id; }));
+    var has = !!(weather && weather.places.some(function (q) { return q.src === b.dataset.id && !q.pending; }));
     b.classList.toggle("on", b.dataset.id === skySrc);
-    b.title = has ? "" : "还没有预报";
+    b.title = has ? "" : "暂未更新";
     b.classList.toggle("empty", !has);
   });
 }
@@ -281,6 +281,8 @@ function refreshWeather() {
 }
 refreshWeather();
 setInterval(refreshWeather, 30 * 60 * 1000);
+var wxShown = showOffset() + beijingDay();
+setInterval(function () { var k = showOffset() + beijingDay(); if (k !== wxShown) { wxShown = k; refreshWeather(); } }, 60 * 1000);
 
 // 镜头：一开始在岛前方，能看到房子正面和门；从屋里出来时停在门口
 var hint = document.getElementById("hint");
