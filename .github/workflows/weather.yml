@@ -9,8 +9,6 @@ on:
   schedule:
     - cron: "45 0,5,10 * * *"
   workflow_dispatch:
-  push: # 临时：合并前在分支上试跑一次
-    branches: [claude/weather-auto]
 
 permissions:
   contents: write
