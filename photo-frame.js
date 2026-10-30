@@ -26,12 +26,13 @@ function toImage(blob) {
   });
 }
 
-var FRAME = 0.055, MAT = 0.075, DEPTH = 0.045; // 木框宽、卡纸边宽、相框厚（米）
+var FRAME = 0.055, MAT = 0.075, DEPTH = 0.045; // 木框宽、卡纸边宽、相框厚（米）；卡纸边宽是 0.98 米宽相框（客厅那幅）的，别的大小按比例
 export function makePhotoFrame(img, width) {
   var g = new THREE.Group();
   g.name = "photo_frame";
-  var pw = width - 2 * (FRAME + MAT), ph = pw * img.height / img.width; // 照片露出来的大小
-  var h = ph + 2 * (FRAME + MAT);
+  var mat = MAT * width / 0.98; // 卡纸边按相框宽度等比例收窄或放宽
+  var pw = width - 2 * (FRAME + mat), ph = pw * img.height / img.width; // 照片露出来的大小
+  var h = ph + 2 * (FRAME + mat);
   var wood = new THREE.MeshStandardMaterial({ color: 0xb98454, roughness: 0.6 });
   var matPaper = new THREE.MeshStandardMaterial({ color: 0xfbf8f2, roughness: 0.95 });
   // 木框：四条边，比卡纸凸出一点
