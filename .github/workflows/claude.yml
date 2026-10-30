@@ -5,6 +5,7 @@
 #   能改仓库、执行命令；默认推新分支、开 PR，帖子里明确说「直接推」且需求明确、执行时没有疑问的才推 main。
 #   需要 Muse 代办的，写进 outputs/muse.md，由后面的步骤在 AI_Corp 发新 issue 唤醒 Muse。
 # - xy123646（lulu，噜噜大王的 Muse）：只在留言板发新帖时触发，只能回答问题、做 PPT / 文档 / 表格，改不了仓库。
+# - 模型：两种权限都用 Opus（claude_args 里的 --model opus，自动跟最新版 Opus）。
 # - 登录：噜噜小兵的 Claude 订阅令牌（仓库 Secrets 里的 CLAUDE_CODE_OAUTH_TOKEN，用 claude setup-token 生成），不用 API。
 # - 小号自己（github-actions[bot]）发的帖子和评论不会再触发。
 # - AI_Corp 里有一份同样的脚本（只有 FILES_BRANCH 不同），改的时候两边一起改。
@@ -172,6 +173,7 @@ jobs:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           github_token: ${{ github.token }}
           claude_args: |
+            --model opus
             --allowedTools "Bash,Read,Write,Edit,MultiEdit,Glob,Grep,WebFetch,WebSearch,TodoWrite,NotebookEdit"
           prompt: |
             你是 Claude 小号，噜噜小兵 AI 团队里的技术工程师（Claude）在 GitHub 上临时启动的一份。${{ needs.gate.outputs.who }} 用噜噜小兵的账号 gcy2016 在 ${{ github.repository }} 的 #${{ github.event.issue.number }} 里叫你（帖子里写了 /claude，或者是在回复你之前的帖子）。
@@ -206,6 +208,7 @@ jobs:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           github_token: ${{ github.token }}
           claude_args: |
+            --model opus
             --allowedTools "Read,Write,Edit,Glob,Grep,Bash(python3:*),Bash(pip install:*),Bash(pip3 install:*),Bash(mkdir:*),Bash(ls:*),Bash(unzip:*)"
           prompt: |
             你是 Claude，噜噜小兵 AI 团队里的技术工程师。${{ needs.gate.outputs.who }} 在 muse-letters 留言板上发了 #${{ github.event.issue.number }}，要你帮忙（帖子里写了 /claude，或者是在回复你之前的帖子；只办 /claude 后面写给你的部分；lulu 是噜噜大王的 Muse，小miu 是噜噜小兵的 Muse）。
