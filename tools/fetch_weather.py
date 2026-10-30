@@ -43,8 +43,21 @@ def wind(kmh, deg):
     return "%s风%d级" % (DIRS[int((deg + 22.5) % 360 // 45)], level)
 
 
+# 国标（HJ 633-2012）24 小时平均浓度分段（μg/m³）→ 分指数；美标 AQI 比国标严得多，不能直接用
+PM25 = [0, 35, 75, 115, 150, 250, 350, 500]
+PM10 = [0, 50, 150, 250, 350, 420, 500, 600]
+IAQI = [0, 50, 100, 150, 200, 300, 400, 500]
+
+
+def iaqi(c, bps):
+    for i in range(1, len(bps)):
+        if c <= bps[i]:
+            return IAQI[i - 1] + (IAQI[i] - IAQI[i - 1]) * (c - bps[i - 1]) / (bps[i] - bps[i - 1])
+    return 500
+
+
 def air(aqi):
-    # 美标 AQI 和国标分档一样：优、良、轻度、中度、重度、严重
+    # 优、良、轻度、中度、重度、严重
     if aqi is None:
         return ""
     for top, name in [(50, "优"), (100, "良"), (150, "轻度污染"), (200, "中度污染"), (300, "重度污染")]:
@@ -76,12 +89,15 @@ def fetch(c):
     # 空气质量查不到不要紧，天气照样写
     try:
         a = get("https://air-quality-api.open-meteo.com/v1/air-quality", {
-            "latitude": c["lat"], "longitude": c["lon"], "timezone": "Asia/Shanghai", "forecast_days": 3, "hourly": "us_aqi",
+            "latitude": c["lat"], "longitude": c["lon"], "timezone": "Asia/Shanghai", "forecast_days": 3, "hourly": "pm2_5,pm10",
         }, c["id"] + "-air.json")["hourly"]
-        aqi = {}
-        for t, v in zip(a["time"], a["us_aqi"]):
-            if v is not None:
-                aqi[t[:10]] = max(aqi.get(t[:10], 0), v)
+        # 每天的 PM2.5、PM10 平均浓度 → 国标 AQI（取两个分指数里大的）
+        sums = {}
+        for t, p25, p10 in zip(a["time"], a["pm2_5"], a["pm10"]):
+            if p25 is not None and p10 is not None:
+                d = sums.setdefault(t[:10], [0, 0, 0])
+                d[0] += p25; d[1] += p10; d[2] += 1
+        aqi = {k: round(max(iaqi(v[0] / v[2], PM25), iaqi(v[1] / v[2], PM10))) for k, v in sums.items() if v[2] >= 12}
     except Exception as e:
         print("  %s 空气质量没查到：%s" % (c["city"], e))
         aqi = {}
