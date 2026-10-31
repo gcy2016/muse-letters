@@ -254,12 +254,16 @@ def win(at): return dict(kind="window", at=at, w=WIN_W, z0=SILL, z1=SILL + WIN_H
 def door(at, w=DOOR_W): return dict(kind="door", at=at, w=w, z0=0, z1=DOOR_H)
 def arch(at, w): return dict(kind="arch", at=at, w=w, z0=0, z1=2.3)
 FRONT_DOOR_W, FRONT_DOOR_H = 0.97, 2.11
+# 房间门：带门扇的门（用 C 的室内门），能上锁的房间都用它，room 是门里面那个房间（门往这个房间里开，锁的也是它）。
+#   以后新加房间也用 room_door 开门；不上锁的通道（玄关到厨房的过道、客厅和厨房之间的拱门）用 door / arch，只有门洞。
+#   哪个房间真上锁写在 config.js 的 roomLocks，这里只管装门
+def room_door(at, room): return dict(kind="room_door", at=at, w=FRONT_DOOR_W, z0=0, z1=FRONT_DOOR_H, room=room)
 # 墙：(编号, 沿哪个轴, 中线坐标, 起点, 终点, 厚度, 负侧房间, 正侧房间, 门窗)。None 表示屋外
 ye, xe = T_EXT / 2, T_EXT / 2
 WALLS = [
     ("back_kitchen",  "x", Y1 - ye, -1.0, X1 - T_EXT, T_EXT, "kitchen", None, [win(2.55)]),
     ("right_kitchen", "y", X1 - xe, -0.06, Y1, T_EXT, "kitchen", None, [win(1.6)]),
-    ("right_bedroom", "y", X1 - xe, Y0 + T_EXT, -0.06, T_EXT, "bedroom", None, [win(-1.45)]),
+    ("right_bedroom", "y", X1 - xe, Y0 + T_EXT, -0.06, T_EXT, "bedroom", None, [win(-2.0)]),   # 窗户往前挪了点，给靠墙的衣柜让地方
     ("front_bedroom", "x", Y0 + ye, 1.2, X1, T_EXT, None, "bedroom", [win(3.1)]),
     ("front_entry",   "x", Y0 + ye, -1.5, 1.2, T_EXT, None, "entry", [dict(kind="front_door", at=-0.15, w=FRONT_DOOR_W, z0=0, z1=FRONT_DOOR_H)]),
     ("front_study",   "x", Y0 + ye, X0, -1.5, T_EXT, None, "study", [win(-3.25)]),
@@ -269,8 +273,8 @@ WALLS = [
     ("mid_kitchen_entry", "x", -0.06, -0.94, 1.2, T_INT, "entry", "kitchen", [door(-0.15, 1.0)]),
     ("mid_kitchen_bedroom", "x", -0.06, 1.2, X1 - T_EXT, T_INT, "bedroom", "kitchen", []),
     ("living_kitchen", "y", -0.94, 0.0, Y1 - T_EXT, T_INT, "living", "kitchen", [arch(2.45, 1.5)]),
-    ("study_entry",   "y", -1.5, Y0 + T_EXT, -0.12, T_INT, "study", "entry", [door(-1.2)]),
-    ("entry_bedroom", "y", 1.2, Y0 + T_EXT, -0.12, T_INT, "entry", "bedroom", [door(-1.2)]),
+    ("study_entry",   "y", -1.5, Y0 + T_EXT, -0.12, T_INT, "study", "entry", [room_door(-1.2, "study")]),
+    ("entry_bedroom", "y", 1.2, Y0 + T_EXT, -0.12, T_INT, "entry", "bedroom", [room_door(-1.2, "bedroom")]),
 ]
 
 def link(ob, parent=None):
@@ -349,6 +353,8 @@ def build_wall(wid, axis, c, a0, a1, T, neg, pos, openings):
             box("%s_head_%.2f" % (wid, op["at"]), size, (op["at"], c, op["z1"]) if axis == "x" else (c, op["at"], op["z1"]), [MATS["frame_oak"]], None, run, part="frame")
         elif op["kind"] == "front_door":
             front_door(run, op["at"], c, T)
+        elif op["kind"] == "room_door":
+            inner_door(run, op["at"], c, axis, op["room"])
     piece(cur, a1, 0, H, "full")
     return run
 
@@ -399,6 +405,11 @@ def place(name, x, y, rot=0, room="", fid=None, z=0.0, solid=True, recolor=None,
                     if m and m.name in recolor: o.data.materials[i] = MATS[recolor[m.name]]
     return holder
 
+def inner_door(run, at, c, axis, room):
+    # 房间门：C 的室内门，只要门框、门扇、把手，不要它自带的那段墙和踢脚线。门扇往哪边开 house.js 按 door_room 算
+    keep = lambda o: not o.name.startswith("wall-door-2m_0") and not o.name.startswith("wall-door-2m_1")
+    x, y, rot = (at, c, 0) if axis == "x" else (c, at, 90)
+    place("wall-door-2m", x, y, rot, room=room, fid="door_" + room, solid=False, keep=keep, parent=run, part="door", door_room=room)
 def front_door(run, at, c, T):
     # 用 C 的入户门：只要门框、门扇和上面的小零件，不要它自带的那段墙
     keep = lambda o: not o.name.startswith("wall-front-door-2m_0") and not o.name.startswith("wall-front-door-2m_1")
@@ -502,16 +513,18 @@ place("slippers", -0.55, -3.0, room=E, solid=False)
 place("bath-mat", -0.15, -2.95, room=E, solid=False, fid="doormat")
 
 # 卧室：双人床靠墙、两个床头柜和台灯、衣柜、斗柜、地毯
+# 卧室门往卧室里开（门扇扫过门边约 0.85 米），床和床头柜往里挪开给门留地方；衣柜转过来靠右墙、柜门朝床，抽屉柜放到前墙窗户右边，不挡路
 B_ = "bedroom"
-place("double-bed", 2.45, -0.12 - 1.0, room=B_, interact="bed")
-for i, x in enumerate((1.48, 3.43)):
+BED_X = 2.87
+place("double-bed", BED_X, -0.12 - 1.0, room=B_, interact="bed")
+for i, x in enumerate((BED_X - 0.97, BED_X + 0.98)):
     place("bedside-table", x, -0.35, room=B_, fid="bedside_table_%d" % i)
     place("table-lamp", x, -0.35, room=B_, z=0.5, solid=False, fid="table_lamp_%d" % i)
-place("wardrobe", 4.83 - 0.56, -0.12 - 0.34, room=B_)
-place("dresser", 1.26 + 0.26, -2.6, 90, room=B_)
-place("bedroom-rug", 2.6, -2.45, room=B_, solid=False)
-place("wall-art-frames", 2.45, -0.12 - 0.03, room=B_, z=1.45, solid=False, wallmount="mid_kitchen_bedroom")
-place("slippers", 3.45, -1.6, -90, room=B_, solid=False, fid="slippers_bed")
+place("wardrobe", 4.83 - 0.34, -0.12 - 0.56, -90, room=B_)
+place("dresser", 4.83 - 0.05 - 0.5, -3.33 + 0.26, 180, room=B_)
+place("bedroom-rug", BED_X, -2.45, room=B_, solid=False)
+place("wall-art-frames", BED_X, -0.12 - 0.03, room=B_, z=1.45, solid=False, wallmount="mid_kitchen_bedroom")
+place("slippers", BED_X + 1.0, -1.6, -90, room=B_, solid=False, fid="slippers_bed")
 
 # ---------- 6b. 屋顶（从外面看时才显示；进屋后 house.js 会藏起来，变成剖开看） ----------
 def prism(name, top, depth, mats, parent, axis_down=True):
@@ -563,7 +576,7 @@ SPOTS = [
     ("computer", "study", "电脑前", -3.3, -1.05, 0, 180), ("cat_tree", "study", "猫爬架", -2.15, -2.7, 1.04, 0),
     ("cat_bed_miu", "study", "小miu 的猫窝", -4.1, -1.5, 0.08, 90), ("cat_bed_lulu", "study", "lulu 的猫窝", -4.1, -2.2, 0.08, 90),
     ("door", "entry", "门口", -0.15, -2.75, 0, 180), ("board", "entry", "留言板前", -0.55, -2.2, 0, -90),
-    ("bed", "bedroom", "床上", 2.45, -1.4, 0.55, 0),
+    ("bed", "bedroom", "床上", BED_X, -1.4, 0.55, 0),
 ]
 for sid, room, lab, x, y, z, rot in SPOTS:
     empty("spot_" + sid, (x, y, z + elev(room)), ROOT, rot, kind="spot", id=sid, room=room, label=lab)

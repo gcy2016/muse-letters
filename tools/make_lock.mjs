@@ -1,5 +1,5 @@
 // 生成大门锁的配置：node tools/make_lock.mjs 新密码
-// 把输出的几行换进 config.js 的 lock 里。算法要和 lock.js 一致。
+// 把输出的几行换进 config.js 的 lock 里（房间门锁也用它生成，放进 roomLocks）。算法要和 lock.js 一致。
 import { webcrypto as crypto } from "node:crypto";
 
 var password = process.argv[2];

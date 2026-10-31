@@ -92,7 +92,7 @@
     import { loadPet } from "./pet.js";
     import { together, stopTogether, TOGETHER } from "./pet-together.js";
     import { progressGroup } from "./glb-fetch.js";
-    import { unlock } from "./lock.js";
+    import { unlock, roomHasLock, isRoomUnlocked, unlockRoom } from "./lock.js";
     import { loadParcels } from "./parcel-data.js";
     import { makeParcelBoxes } from "./parcel-boxes.js";
     import { HOUSE as LAYOUT, PHOTO_SLOTS, PET_SPOTS, placeInHouse } from "./layout.js";
@@ -145,6 +145,8 @@
     var key = await unlock();
     house = await loading;
     scene.add(house.root);
+    // 房间门锁（第二道锁，config.js 的 roomLocks）：这个浏览器没开过锁的房间，全屋视角下门关着、盖着盖子、看不到里面
+    for (var rid in house.rooms) if (roomHasLock(rid)) house.setLocked(rid, !await isRoomUnlocked(rid));
     // 旅行相册（travel-album.js）：客厅电视随机放照片，客厅墙上挂相册的点亮地图
     var tv = startTravelAlbum(house);
     // 墙上的照片（一般是 photo-lock.html 用大门锁密码加密的，plain 的是明文）：有文件就挂上带木框、卡纸的相框，位置见 layout.js
@@ -251,10 +253,22 @@
     // 房间按钮按模型里的房间（tools/build_house.py 的户型）生成，改户型不用改这里。
     // 只有一层时“全屋”加各房间；有楼上时每层一个按钮（看到那层为止，上面的藏起来），再跟着那层的房间
     function showRoom(id, instant, level) {
+      // 锁着的房间：先输这个房间的密码；取消了就留在原来的视角，房间照样锁着
+      if (id && house.locked[id]) {
+        unlockRoom(id, house.rooms[id].label).then(function (ok) {
+          if (!ok) return;
+          house.setLocked(id, false);
+          roomButtonText(id);
+          showRoom(id, instant);
+        });
+        return;
+      }
       if (id) level = house.rooms[id].level;
       else if (level === undefined) level = null;
       house.setView({ room: id, level: level });
-      cast.forEach(function (a) { a.visible = id ? a.userData.room === id : level === null || a.userData.level <= level; });
+      cast.forEach(function (a) {
+        a.visible = id ? a.userData.room === id : (level === null || a.userData.level <= level) && !house.locked[a.userData.room];
+      });
       var on = id ? "room:" + id : level === null ? "room:" : "level:" + level;
       Object.keys(buttons).forEach(function (k) { if (/^(room|level):/.test(k)) buttons[k].classList.toggle("on", k === on); });
       frame(id, instant);
@@ -262,8 +276,9 @@
     button("room:", "全屋", function () { showRoom(null); });
     house.levels.forEach(function (l) {
       if (house.levels.length > 1) button("level:" + l.level, l.label, function () { showRoom(null, false, l.level); });
-      l.rooms.forEach(function (id) { button("room:" + id, house.rooms[id].label, function () { showRoom(id); }); });
+      l.rooms.forEach(function (id) { button("room:" + id, "", function () { showRoom(id); }); roomButtonText(id); });
     });
+    function roomButtonText(id) { buttons["room:" + id].textContent = house.rooms[id].label + (house.locked[id] ? " 🔒" : ""); }
     bar.appendChild(Object.assign(document.createElement("span"), { className: "gap" }));
     // 出门：回到噜噜岛，镜头停在门口
     function goOut() { location.href = "index.html?from=house"; }
@@ -372,6 +387,7 @@
       var h = hit(e);
       if (!h) return;
       if (h.id === "door") goOut();
+      else if (/^room:/.test(h.id)) showRoom(h.id.slice(5)); // 房间门、锁着的房间的盖子：进这个房间（锁着的先输密码）
       else if (h.id === "board") boardUI.open();
       else if (h.id === "parcel") open("<iframe src='parcels.html?view=list'></iframe>");
       else if (h.id === "tv") openTv();
@@ -383,7 +399,7 @@
     canvas.addEventListener("pointermove", function (e) {
       if (e.pointerType !== "mouse") return;
       var h = hit(e);
-      canvas.style.cursor = h && (h.id === "board" || h.id === "parcel" || h.id === "door" || h.id === "tv" || h.id === "map" || h.id === "weather" || /^calendar/.test(h.id) || NOTES[h.id]) ? "pointer" : "";
+      canvas.style.cursor = h && (/^room:/.test(h.id) || h.id === "board" || h.id === "parcel" || h.id === "door" || h.id === "tv" || h.id === "map" || h.id === "weather" || /^calendar/.test(h.id) || NOTES[h.id]) ? "pointer" : "";
     });
 
     // 动作面板：选哪只（小miu / lulu），左边选一只做的动作、右边选两只一起玩，都是上下滚动的选择轮，点中间框里的就开始

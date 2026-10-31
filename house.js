@@ -15,6 +15,9 @@
 //   house.pick(raycaster)              // 点到了什么：{ id: "computer" | "board" | "door" | "tv" | "sofa" | "bed", object, point } 或 null
 //   house.setView({ exterior: true })  // 从外面看：盖上屋顶、墙全部立起来（放进小岛等外部场景时用）；false 回到剖开看
 //   house.setDoor(true)                // 入户门开 / 关（会慢慢转过去）；house.doorOpen 是当前目标状态
+//   house.doors                        // { study: { room, node } }：房间门（门往这个房间里开）。全屋视角显示；只看单个房间时所有门都不显示
+//   house.setLocked("study", true)     // 房间上锁 / 开锁：锁着时门关上、房间盖上盖子、里面的东西都藏起来（全屋和从外面看都看不到）；
+//                                      // 开着时门打开。house.locked.study 是当前状态。点锁着的房间的门或盖子，pick 返回 { id: "room:study" }
 //   house.doorPosition                 // 入户门外侧台阶上的一点（房子坐标），镜头对准门用
 //   house.addItem(obj, { auto: true, interact }) // 往房子里加东西（房子坐标，先摆好位置和朝向）：按位置自动算房间、找贴着的墙，
 //                                      // 跟着房间显示/隐藏、墙被削矮时一起藏；interact 是点它时 pick 返回的 id。也可以直接给 { room, wall }。
@@ -43,7 +46,7 @@ export function loadHouse(url, onProgress) {
 export function makeHouse(root) { // 已经加载好的场景（gltf.scene）直接造房子，测试用
   root.name = "house";
   var rooms = {}, spots = {}, walls = [], items = [], floors = [], interactables = {}, bases = [], roof = null;
-  var wallById = {};
+  var wallById = {}, doorNodes = [];
 
   root.traverse(function (o) {
     var d = o.userData;
@@ -63,7 +66,8 @@ export function makeHouse(root) { // 已经加载好的场景（gltf.scene）直
       walls.push(w);
       wallById[w.id] = w;
     } else if (d.kind === "furniture") {
-      items.push({ node: o, room: d.room, wallmount: d.wallmount || null, solid: !!d.solid });
+      items.push({ node: o, room: d.room, wallmount: d.wallmount || null, solid: !!d.solid, door: !!d.door_room || d.interact === "door" });
+      if (d.door_room) doorNodes.push(o);
       if (d.interact) interactables[d.interact] = o;
     } else if (d.kind === "floor") {
       floors.push({ node: o, room: d.room });
@@ -111,20 +115,63 @@ export function makeHouse(root) { // 已经加载好的场景（gltf.scene）直
     });
   }
 
-  // 入户门：门扇（名字以 door 开头的几个零件）挂到合页上，能开能关。门扇宽约 0.83，合页在门的左边（从外面看）
-  var doorHinge = null, doorAngle = 0, doorPosition = new THREE.Vector3();
-  if (interactables.door) {
-    root.updateMatrixWorld(true);
+  // 门（入户门、房间门）：门扇（名字以 door 开头的几个零件）挂到合页上，能开能关。门扇宽约 0.83，合页在门的左边（从门正面看）。
+  // 门一律往 into 那个房间里开：试着转一下，看门扇落在哪边。门开着时不能碰到家具，摆家具时给门留出地方
+  root.updateMatrixWorld(true);
+  function leafAt(hinge, a) {
+    hinge.rotation.y = a;
+    hinge.updateMatrixWorld(true);
+    return new THREE.Box3().setFromObject(hinge);
+  }
+  function hang(node, into) {
     var leaves = [];
-    interactables.door.traverse(function (o) { if (/^door/.test(o.name) && !/^door/.test(o.parent.name)) leaves.push(o); });
-    doorHinge = new THREE.Group();
-    doorHinge.name = "door_hinge";
-    doorHinge.position.set(-0.415, 0, 0);
-    interactables.door.add(doorHinge);
-    doorHinge.updateMatrixWorld(true);
-    leaves.forEach(function (o) { doorHinge.attach(o); });
+    node.traverse(function (o) { if (/^door/.test(o.name) && !/^door/.test(o.parent.name)) leaves.push(o); });
+    var hinge = new THREE.Group();
+    hinge.name = "door_hinge";
+    hinge.position.set(-0.415, 0, 0);
+    node.add(hinge);
+    hinge.updateMatrixWorld(true);
+    leaves.forEach(function (o) { hinge.attach(o); });
+    var c = leafAt(hinge, 1.65).getCenter(new THREE.Vector3());
+    var open = roomAt(c.x, c.z) === into ? 1.65 : -1.65;
+    leafAt(hinge, 0);
+    return { hinge: hinge, angle: 0, open: open };
+  }
+  var frontDoor = null, doorPosition = new THREE.Vector3();
+  if (interactables.door) {
+    frontDoor = hang(interactables.door, "entry");
     interactables.door.getWorldPosition(doorPosition);
     doorPosition.z += 0.6; // 门外台阶上
+  }
+  var doors = {}, locked = {};
+  doorNodes.forEach(function (o) {
+    var room = o.userData.door_room;
+    o.userData.interact = "room:" + room;
+    doors[room] = Object.assign(hang(o, room), { room: room, node: o });
+  });
+  function swing(d, open) {
+    d.angle += ((open ? d.open : 0) - d.angle) * 0.12;
+    d.hinge.rotation.y = d.angle;
+  }
+  // 锁着的房间盖上盖子（和屋顶一个颜色），点盖子也算点这个房间
+  var lidMat = new THREE.MeshStandardMaterial({ color: 0xe5836f, roughness: 0.85 });
+  var lids = {};
+  function lidOf(id) {
+    if (lids[id]) return lids[id];
+    var r = rooms[id], top = r.elev + 2.8;
+    walls.forEach(function (w) { if (w.roomA === id || w.roomB === id) top = Math.max(top, w.box.max.y); });
+    var m = new THREE.Mesh(new THREE.BoxGeometry(r.x1 - r.x0 + 0.12, 0.08, r.z1 - r.z0 + 0.12), lidMat);
+    m.position.set((r.x0 + r.x1) / 2, top + 0.04, (r.z0 + r.z1) / 2);
+    m.castShadow = m.receiveShadow = true;
+    m.userData.interact = "room:" + id;
+    m.visible = false;
+    root.add(m);
+    return lids[id] = m;
+  }
+  function setLocked(id, on) {
+    if (!rooms[id]) return;
+    locked[id] = !!on;
+    lidOf(id);
   }
   var view = { room: null, level: null, walls: "low", exterior: false };
   var doorOpen = false;
@@ -173,11 +220,9 @@ export function makeHouse(root) { // 已经加载好的场景（gltf.scene）直
   // 按相机方向决定每面墙：全高 / 变矮（矮墙模式下的内墙）/ 只留墙脚（挡住视线的墙）/ 不显示（别的房间、上面的楼层）
   // 有楼层时：看某个房间只显示这一间；看某一层时这层照上面的规则剖开，上面的楼层整层藏起来，下面的楼层照原样立着（被这层的楼板挡着）
   function update(camera) {
-    // 门慢慢转到目标角度（往屋里开）
-    if (doorHinge) {
-      doorAngle += ((doorOpen ? 1.65 : 0) - doorAngle) * 0.12;
-      doorHinge.rotation.y = doorAngle;
-    }
+    // 门慢慢转到目标角度（往屋里开）；房间门跟着门锁：开了锁就开着，锁着就关着
+    if (frontDoor) swing(frontDoor, doorOpen);
+    Object.keys(doors).forEach(function (id) { swing(doors[id], !locked[id]); });
     if (roof) roof.visible = view.exterior;
     if (view.exterior) { showAll(); return; }
     var R = view.room;
@@ -189,7 +234,9 @@ export function makeHouse(root) { // 已经加载好的场景（gltf.scene）直
     walls.forEach(function (w) {
       var n = w.axis === "x" ? dir.z : dir.x; // 墙的法线（指向 roomB 一侧）和视线方向的点积
       var show = true, height = 0; // height：0 表示全高
-      if (R) {
+      var shut = !R && (locked[w.roomA] || locked[w.roomB]) && (L === null || w.level === L); // 锁着的房间四面墙都全高立着
+      if (shut) height = 0;
+      else if (R) {
         if (w.roomA !== R && w.roomB !== R) show = false;
         else if ((w.roomB === R ? n : -n) < -0.2) height = STUB_WALL;
       } else if (L !== null && w.level !== L) {
@@ -210,11 +257,13 @@ export function makeHouse(root) { // 已经加载好的场景（gltf.scene）直
       });
     });
     items.forEach(function (it) {
-      var vis = R ? it.room === R : L === null || it.level <= L;
+      var vis = R ? it.room === R && !it.door : L === null || it.level <= L; // 只看单个房间时不显示门
+      if (vis && !R && locked[it.room] && !it.door) vis = false;              // 锁着的房间里的东西看不到（门照样关着立着）
       if (vis && it.wallmount) { var w = wallById[it.wallmount]; vis = w ? w.shown && !w.cut : true; }
       it.node.visible = vis;
     });
-    floors.forEach(function (f) { f.node.visible = R ? f.room === R : L === null || f.level <= L; });
+    floors.forEach(function (f) { f.node.visible = R ? f.room === R : (L === null || f.level <= L) && !locked[f.room]; });
+    Object.keys(lids).forEach(function (id) { lids[id].visible = !R && !!locked[id] && (L === null || rooms[id].level <= L); });
     bases.forEach(function (b) { b.visible = !R && (L === null || b.userData.level <= L); });
     Object.keys(roomBases).forEach(function (id) { roomBases[id].visible = id === R; });
   }
@@ -228,8 +277,9 @@ export function makeHouse(root) { // 已经加载好的场景（gltf.scene）直
         else if (p.part === "above" || p.part === "window" || p.part === "frame") p.node.visible = true;
       });
     });
-    items.forEach(function (it) { it.node.visible = true; });
+    items.forEach(function (it) { it.node.visible = it.door || !locked[it.room]; }); // 从窗户也看不到锁着的房间里面
     floors.forEach(function (f) { f.node.visible = true; });
+    Object.keys(lids).forEach(function (id) { lids[id].visible = false; });
     bases.forEach(function (b) { b.visible = true; });
     Object.keys(roomBases).forEach(function (id) { roomBases[id].visible = false; });
   }
@@ -297,7 +347,8 @@ export function makeHouse(root) { // 已经加载好的场景（gltf.scene）直
   }
 
   var api = { root: root, addItem: addItem, rooms: rooms, levels: levels, spots: spots, colliders: colliders, interactables: interactables, walls: walls, bounds: bounds,
-    view: view, setView: setView, update: update, pick: pick, roomAt: roomAt, levelAt: levelAt, setDoor: setDoor, doorOpen: false, doorPosition: doorPosition };
+    view: view, setView: setView, update: update, pick: pick, roomAt: roomAt, levelAt: levelAt, setDoor: setDoor, doorOpen: false, doorPosition: doorPosition,
+    doors: doors, locked: locked, setLocked: setLocked };
   return api;
 }
 

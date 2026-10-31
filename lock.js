@@ -8,21 +8,29 @@
 //   var obj = await decrypt(key, text); // 解不开（密码改过、内容坏了）返回 null
 //   var bin = await encryptBytes(key, bytes); var bytes = await decryptBytes(key, bin); // 整个文件（照片等）
 // 改密码：node tools/make_lock.mjs 新密码，把输出的几行换进 config.js 的 lock。改密码后旧的快递留言解不开，Muse 重新留一条就好。
+//
+// 房间门锁（第二道锁，config.js 的 roomLocks，没写的房间不上锁、大门开了就能进）：
+//   if (await isRoomUnlocked("study")) ...      // 这个浏览器开过书房的锁没有（没设锁的房间永远是 true）
+//   var ok = await unlockRoom("study", "书房");   // 没开过就弹密码框（带“取消”），开了返回 true，取消返回 false
+// 房间锁只管进不进得去，不用来加密东西（加密照样用大门锁的密钥）
 
 var cfg = window.BOARD_CONFIG.lock;
 var STORE = "muse-lock:" + cfg.salt;
+var roomCfg = window.BOARD_CONFIG.roomLocks || {};
 var enc = new TextEncoder(), dec = new TextDecoder();
 
 function b64(buf) { return btoa(String.fromCharCode.apply(null, new Uint8Array(buf))); }
 function unb64(s) { return Uint8Array.from(atob(s), function (c) { return c.charCodeAt(0); }); }
 
 // 密码 → 256 位密钥（PBKDF2）；config 里存的 check 是这把密钥的 SHA-256，用来判断密码对不对
-async function derive(password) {
+// c 是哪把锁的配置，不传是大门锁
+async function derive(password, c) {
+  c = c || cfg;
   var base = await crypto.subtle.importKey("raw", enc.encode(password), "PBKDF2", false, ["deriveBits"]);
-  return crypto.subtle.deriveBits({ name: "PBKDF2", salt: enc.encode(cfg.salt), iterations: cfg.iterations, hash: "SHA-256" }, base, 256);
+  return crypto.subtle.deriveBits({ name: "PBKDF2", salt: enc.encode(c.salt), iterations: c.iterations, hash: "SHA-256" }, base, 256);
 }
-async function matches(bits) {
-  return b64(await crypto.subtle.digest("SHA-256", bits)) === cfg.check;
+async function matches(bits, c) {
+  return b64(await crypto.subtle.digest("SHA-256", bits)) === (c || cfg).check;
 }
 function toKey(bits) {
   return crypto.subtle.importKey("raw", bits, "AES-GCM", false, ["encrypt", "decrypt"]);
@@ -52,10 +60,33 @@ export function unlock(opts) {
   })());
 }
 
-function askPassword(cancelable) {
+// 房间锁：每个房间一把，本机开过就记住（和大门锁一样存校验得过的密钥）
+function roomStore(room) { return "muse-lock-room:" + room + ":" + roomCfg[room].salt; }
+export function roomHasLock(room) { return !!roomCfg[room]; }
+export async function isRoomUnlocked(room) {
+  if (!roomCfg[room]) return true;
+  try {
+    var saved = localStorage.getItem(roomStore(room));
+    return !!saved && await matches(unb64(saved), roomCfg[room]);
+  } catch (e) {
+    return false;
+  }
+}
+export async function unlockRoom(room, label) {
+  if (await isRoomUnlocked(room)) return true;
+  var bits = await askPassword(true, { cfg: roomCfg[room], store: roomStore(room), title: "🔒 " + (label || room) + "的门锁", button: "开锁" });
+  return !!bits;
+}
+
+// opts（房间锁用）：{ cfg, store, title, button }
+function askPassword(cancelable, opts) {
+  opts = opts || {};
+  var c = opts.cfg || cfg, store = opts.store || STORE;
+  // 房间锁是在屋里弹出来的：底色半透明，看得见后面的房子
+  var bg = opts.cfg ? "rgba(244,239,232,.85)" : "#f4efe8";
   var style = document.createElement("style");
   style.textContent =
-    "#lock{position:fixed;inset:0;z-index:100;display:flex;align-items:center;justify-content:center;background:#f4efe8;font-family:-apple-system,'PingFang SC','Microsoft YaHei',sans-serif}" +
+    "#lock{position:fixed;inset:0;z-index:100;display:flex;align-items:center;justify-content:center;background:" + bg + ";font-family:-apple-system,'PingFang SC','Microsoft YaHei',sans-serif}" +
     "#lock form{width:260px;max-width:calc(100% - 32px);padding:24px;border-radius:16px;background:#fff;box-shadow:0 6px 30px rgba(0,0,0,.12);text-align:center;color:#5a4636}" +
     "#lock h1{margin:0 0 4px;font-size:22px}#lock p{margin:0 0 16px;font-size:14px;color:#8a7d74}" +
     "#lock input{width:100%;box-sizing:border-box;padding:10px;font-size:20px;letter-spacing:6px;text-align:center;border:1px solid #eadfd6;border-radius:10px;background:#fdf6f0;color:#2b2420}" +
@@ -65,9 +96,9 @@ function askPassword(cancelable) {
   document.head.appendChild(style);
   var box = document.createElement("div");
   box.id = "lock";
-  box.innerHTML = "<form><h1>🔒 大门锁</h1><p>输入密码开门</p>" +
+  box.innerHTML = "<form><h1>" + (opts.title || "🔒 大门锁") + "</h1><p>输入密码开门</p>" +
     "<input id='lock-pw' type='password' inputmode='numeric' autocomplete='current-password' aria-label='密码' required>" +
-    "<button id='lock-open' type='submit'>开门</button>" +
+    "<button id='lock-open' type='submit'>" + (opts.button || "开门") + "</button>" +
     (cancelable ? "<button id='lock-cancel' type='button' class='cancel'>取消</button>" : "") +
     "<p class='err' id='lock-err'></p></form>";
   document.body.appendChild(box);
@@ -78,9 +109,9 @@ function askPassword(cancelable) {
     box.querySelector("form").onsubmit = async function (ev) {
       ev.preventDefault();
       err.textContent = "";
-      var bits = await derive(input.value.trim());
-      if (!await matches(bits)) { err.textContent = "密码不对"; input.select(); return; }
-      try { localStorage.setItem(STORE, b64(bits)); } catch (e) {}
+      var bits = await derive(input.value.trim(), c);
+      if (!await matches(bits, c)) { err.textContent = "密码不对"; input.select(); return; }
+      try { localStorage.setItem(store, b64(bits)); } catch (e) {}
       box.remove();
       style.remove();
       resolve(bits);

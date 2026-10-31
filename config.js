@@ -30,6 +30,13 @@ window.BOARD_CONFIG = {
     check: "ElMbhHRQRlhuyro1a0WaHesr9nAttzZjv4uO4sAa+jE=",
   },
 
+  // 房间门锁（第二道锁）：要给哪个房间上锁，在这里加一行，房间 id 见 tools/build_house.py 的 ROOMS。
+  // 生成：node tools/make_lock.mjs 这个房间的密码（可以和大门一样，也可以不一样），把输出的三行放进花括号，例如
+  //   study: { salt: "...", iterations: 200000, check: "..." },
+  // 没写的房间不上锁：大门开了就能进。客厅、厨房不上锁，玄关归大门锁管（噜噜岛 PRD 3.2）。现在只锁大门
+  roomLocks: {
+  },
+
   // 待取件快递：Muse 每天发一条标题以 parcelPrefix 开头的 issue 列出当天待取件（格式见 parcel-data.js）。
   // 按发帖账号分来源，每个来源只用它最新的一条：小miu（gcy2016）提供噜噜小兵的，lulu（xy123646）提供噜噜大王的。
   // id 对应 layout.js 里 parcels 的那一摞（mine 日历下面、hers 天气下面）
