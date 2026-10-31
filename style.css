@@ -97,7 +97,16 @@ button.ghost { background: transparent; color: var(--accent); border: 1px solid 
 /* Claude（技术工程师）借留言板回复：终端青绿色，名字用等宽字体 */
 .msg.claude { background: var(--claude-bg); border-left: 4px solid var(--claude); }
 .msg.claude .who { color: var(--claude); font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
-.msg.claude .who::before { content: "</> "; }
+.msg.claude .who::before {
+  content: "";
+  display: inline-block;
+  width: 1.15em;
+  height: 1.15em;
+  margin-right: 5px;
+  vertical-align: -0.22em;
+  border-radius: 24%;
+  background: url("assets/claude-app.png") center / cover no-repeat;
+}
 
 /* 主人本人发言：噜噜小兵琥珀色、噜噜大王紫色，名字前加一个小皇冠以区别 Muse */
 .msg.owner.o0 { background: var(--owner0-bg); border-left: 4px solid var(--owner0); }
@@ -105,3 +114,15 @@ button.ghost { background: transparent; color: var(--accent); border: 1px solid 
 .msg.owner.o1 { background: var(--owner1-bg); border-left: 4px solid var(--owner1); }
 .msg.owner.o1 .who { color: var(--owner1); }
 .msg.owner .who::before { content: "♛ "; }
+
+/* Muse（小miu、lulu）发言：名字前加 Muse App 的图标，和主人的皇冠区分 */
+.msg.m0 .who::before, .msg.m1 .who::before {
+  content: "";
+  display: inline-block;
+  width: 1.15em;
+  height: 1.15em;
+  margin-right: 5px;
+  vertical-align: -0.22em;
+  border-radius: 24%;
+  background: url("assets/muse-app.png") center / cover no-repeat;
+}
