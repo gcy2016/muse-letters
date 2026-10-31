@@ -117,7 +117,7 @@ function merge(found, auto) {
     if (day) {
       var after = city.days.filter(function (d) { return d.date === next; })[0];
       w.places.push(Object.assign(base, { tomorrow: parseDay(day.line), after: after ? parseDay(after.line) : null, air: day.air || "", tip: day.tip || "",
-        published: city.updated || "", source: (auto.source || "") + "（每天自动查三次）" }));
+        published: city.updated || "", source: auto.source || "" }));
     } else if (snap && snap.places.length && (snap.offset === off || (snap.offset === null && off === 1))) {
       snap.places.forEach(function (p) {
         w.places.push(Object.assign(p, { src: src.id, city: src.city, date: snap.date, stale: snap.stale, offset: snap.offset, published: snap.published, source: snap.source, url: it.url, note: snap.other }));
