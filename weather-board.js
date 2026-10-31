@@ -201,7 +201,7 @@ export function weatherDetail(wx, error) {
   wx.places.forEach(function (p) {
     var card = mk("div", { className: "wx-place" }, [mk("h4", { textContent: p.name + (p.who ? "　" + p.who : "") + (p.date ? "　" + p.date : "") })]);
     if (p.stale) card.append(mk("div", { className: "wx-warn", textContent: "预报已过期，还没有新的预报。" }));
-    if (p.pending) { card.append(mk("div", { className: "wx-warn", textContent: "暂未更新（每天约 9 点、14 点、19 点自动查天气）。" })); box.append(card); return; }
+    if (p.pending) { card.append(mk("div", { className: "wx-warn", textContent: "暂未更新。" })); box.append(card); return; }
     var off = p.offset === null || p.offset === undefined ? 1 : p.offset;
     card.append(dayRow(dayName(off) || "当天", p.tomorrow, true) || mk("div", { textContent: "（没有预报）" }));
     var after = dayRow(dayName(off + 1) || "次日", p.after);
