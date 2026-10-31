@@ -230,7 +230,12 @@ mat("roof", "#e5836f", 0.85); mat("roof_edge", "#c96a58", 0.85); mat("chimney", 
 
 # ---------- 3. 户型 ----------
 # 房间：x、y 是墙中线围成的范围（米）。客厅就是方案 B 原来的 4×4 房间，放在左后角。
+# 楼层：房间写 level=1 就在二楼（不写是一楼 0）。每层地面高 level × LEVEL_H；墙、家具、地板、位置点按所属房间自动抬到那层，
+#   屋顶盖在最高一层上面。house.js 按房间的 level 分层显示（看哪层就把上面的楼层藏起来）。
+#   客厅（方案 B 原样搬来的墙和家具）固定在一楼。
+#   真加楼上时还要补：楼梯（家具）、楼板（楼上房间的底下，现在只有一楼的底座；楼板用 kind="base"、level=那层）、屋顶按楼上的轮廓改（现在按整栋外轮廓 X0~X1、Y0~Y1 盖）。
 H = 2.8                       # 墙高
+LEVEL_H = H + 0.2             # 层高：楼上地面比楼下高这么多（墙高 + 楼板厚）
 T_EXT, T_INT = 0.17, 0.12     # 外墙、内墙厚度（外墙和 B 的一样厚）
 SILL, WIN_W, WIN_H = 1.05, 1.2, 1.25   # 窗台高、窗宽、窗高（照 B 的窗户）
 DOOR_W, DOOR_H = 0.9, 2.1
@@ -242,6 +247,9 @@ ROOMS = {
     "bedroom": dict(label="卧室",     x=(1.2, 5.0),    y=(-3.5, -0.06)),
 }
 X0, X1, Y0, Y1 = -5.0, 5.0, -3.5, 4.0   # 外轮廓
+def level_of(rid): return ROOMS[rid].get("level", 0) if rid in ROOMS else 0
+def elev(rid): return level_of(rid) * LEVEL_H   # 这个房间那层的地面高度
+TOP_ELEV = max(elev(r) for r in ROOMS)
 def win(at): return dict(kind="window", at=at, w=WIN_W, z0=SILL, z1=SILL + WIN_H)
 def door(at, w=DOOR_W): return dict(kind="door", at=at, w=w, z0=0, z1=DOOR_H)
 def arch(at, w): return dict(kind="arch", at=at, w=w, z0=0, z1=2.3)
@@ -298,6 +306,7 @@ def build_wall(wid, axis, c, a0, a1, T, neg, pos, openings):
     else:
         props = dict(axis="z", c=c, roomA=neg or "", roomB=pos or "")
     run = empty("wall_" + wid, parent=ROOT, kind="wall", exterior=(neg is None or pos is None), **props)
+    run.location.z = max(elev(neg), elev(pos))   # 墙在哪层（两边房间应在同一层）
     mneg, mpos = MATS["wall_" + (neg or "outside")], MATS["wall_" + (pos or "outside")]
     top = 0 if neg else 1
     fm = (top, top, 0, 1, top, top) if axis == "x" else (0, 1, top, top, top, top)
@@ -365,7 +374,8 @@ def import_c(name):
 
 C_CACHE = {}
 def place(name, x, y, rot=0, room="", fid=None, z=0.0, solid=True, recolor=None, keep=None, parent=None, **props):
-    """把 C 的一件家具放到 (x, y)，rot：朝向（0 朝前 -y，90 朝 +x，180 朝后，-90 朝 -x）"""
+    """把 C 的一件家具放到 (x, y)，rot：朝向（0 朝前 -y，90 朝 +x，180 朝后，-90 朝 -x）；z 是离那层地面的高度"""
+    if parent is None: z += elev(room)   # 直接放在房子里的，抬到房间那层（放在别的东西里的，z 本来就是相对的）
     holder = empty("furn_" + (fid or name), (x, y, z), parent or ROOT, rot, kind="furniture", room=room, solid=solid, **props)
     key = (name, tuple(sorted((recolor or {}).items())))
     if key in C_CACHE and keep is None:
@@ -415,7 +425,7 @@ for rid, r in ROOMS.items():
         ob = lr_floor; ob.parent = ROOT
     else:
         wood = FLOOR[rid] == "wood"
-        ob = empty("floor_" + rid, (cx, cy, -0.07 if wood else -0.065), ROOT)
+        ob = empty("floor_" + rid, (cx, cy, elev(rid) + (-0.07 if wood else -0.065)), ROOT)
         nx, ny = math.ceil(w / 2 - 0.05), math.ceil(d / 2 - 0.05)
         ob.scale = (w / (2 * nx), d / (2 * ny), 1)
         for i in range(nx):
@@ -472,7 +482,7 @@ place("cat-bed", -4.1, -2.2, room=S_, fid="cat_bed_lulu", solid=False, recolor={
 # 玄关：入户门（建墙时已放）、留言板（立式软木板，点它打开留言板）、鞋柜、镜子、拖鞋
 E = "entry"
 def message_board(x, y, rot):
-    g = empty("furn_board", (x, y, 0), ROOT, rot, kind="furniture", room=E, solid=True, interact="board")
+    g = empty("furn_board", (x, y, elev(E)), ROOT, rot, kind="furniture", room=E, solid=True, interact="board")
     oak, cork = MATS["frame_oak"], MATS["cork"]
     for s in (-1, 1):
         box("board_leg_%d" % s, (0.05, 0.05, 1.62), (s * 0.5, 0, 0), [oak], None, g)
@@ -519,7 +529,7 @@ def tri_wall(name, x, inward, pts, T, m, parent):
     fs = [(0, 1, 2), (5, 4, 3), (0, 3, 4, 1), (1, 4, 5, 2), (2, 5, 3, 0)]
     me = bpy.data.meshes.new(name); me.from_pydata(vs, [], fs); me.update(); me.materials.append(m)
     return link(bpy.data.objects.new(name, me), parent)
-ROOF = empty("roof", parent=ROOT, kind="roof")
+ROOF = empty("roof", (0, 0, TOP_ELEV), ROOT, kind="roof")   # 盖在最高一层上面
 PITCH, OVER, ROOF_T = math.radians(28), 0.35, 0.14
 YM = (Y0 + Y1) / 2
 ridge_z = H + (Y1 - Y0) / 2 * math.tan(PITCH)
@@ -543,9 +553,9 @@ box("door_step", (1.5, 0.6, 0.2), (-0.15, Y0 - 0.3, -0.25), [MATS["base_slab"]],
 # ---------- 7. 房间范围和位置点（导出成 three.js 坐标，给以后的互动空间用） ----------
 for rid, r in ROOMS.items():
     x0, x1 = r["x"]; y0, y1 = r["y"]
-    empty("room_" + rid, ((x0 + x1) / 2, (y0 + y1) / 2, 0), ROOT, kind="room", id=rid, label=r["label"],
+    empty("room_" + rid, ((x0 + x1) / 2, (y0 + y1) / 2, elev(rid)), ROOT, kind="room", id=rid, label=r["label"], level=level_of(rid), elev=elev(rid),
           x0=x0, x1=x1, z0=-y1, z1=-y0)
-# 位置点：角色站在这里、朝这个方向（0 朝前，180 朝后，90 朝右，-90 朝左）
+# 位置点：角色站在这里、朝这个方向（0 朝前，180 朝后，90 朝右，-90 朝左）；z 是离那层地面的高度
 SPOTS = [
     ("sofa", "living", "沙发", -2.63, 3.2, 0.45, 0), ("tv", "living", "电视前", -3.3, 2.0, 0, -90),
     ("living", "living", "客厅中间", -2.6, 0.75, 0, 0),
@@ -556,7 +566,7 @@ SPOTS = [
     ("bed", "bedroom", "床上", 2.45, -1.4, 0.55, 0),
 ]
 for sid, room, lab, x, y, z, rot in SPOTS:
-    empty("spot_" + sid, (x, y, z), ROOT, rot, kind="spot", id=sid, room=room, label=lab)
+    empty("spot_" + sid, (x, y, z + elev(room)), ROOT, rot, kind="spot", id=sid, room=room, label=lab)
 
 # ---------- 8. 导出 ----------
 for o in list(bpy.data.objects):  # 不属于房子的东西（B 文件里剩下的）不导出

@@ -95,7 +95,7 @@
     import { unlock } from "./lock.js";
     import { loadParcels } from "./parcel-data.js";
     import { makeParcelBoxes } from "./parcel-boxes.js";
-    import { HOUSE as LAYOUT, PHOTO_SLOTS, placeInHouse } from "./layout.js";
+    import { HOUSE as LAYOUT, PHOTO_SLOTS, PET_SPOTS, placeInHouse } from "./layout.js";
     import { loadLockedPhoto, loadPhoto, makePhotoFrame } from "./photo-frame.js";
     import { startTravelAlbum } from "./travel-album.js";
     import { getWeather, showOffset, beijingYmd } from "./weather-data.js";
@@ -125,16 +125,16 @@
     // 进度：房子和两只角色三个文件合在一起算（glb-fetch.js），一直走到 100%，不会停在中间
     var progress = progressGroup(3, function (p) { hint.textContent = "加载中… " + Math.round(p * 100) + "%"; });
     var loading = loadHouse(null, function (p, loaded, total) { progress(0)(loaded, total); });
-    // 两只角色（带骨骼的精细模型，会走会跳会眨眼）也同时下载；走路时只能在自己房间里、不撞家具和墙
+    // 两只角色（带骨骼的精细模型，会走会跳会眨眼）也同时下载；走路时只能在自己房间里、不撞家具和墙（同一层的）
     var house = null;
     function canStandIn(room) {
       return function (x, z) {
         var r = house.rooms[room], m = 0.25;
         if (x < r.x0 + m || x > r.x1 - m || z < r.z0 + m || z > r.z1 - m) return false;
-        return !house.colliders.some(function (c) { return x > c.x0 - 0.15 && x < c.x1 + 0.15 && z > c.z0 - 0.15 && z < c.z1 + 0.15; });
+        return !house.colliders.some(function (c) { return c.level === r.level && x > c.x0 - 0.15 && x < c.x1 + 0.15 && z > c.z0 - 0.15 && z < c.z1 + 0.15; });
       };
     }
-    var PETS = [{ id: "miu", label: "小miu", spot: "living" }, { id: "lulu", label: "lulu", spot: "tv" }];
+    var PETS = [{ id: "miu", label: "小miu" }, { id: "lulu", label: "lulu" }]; // 进屋时站在哪：layout.js 的 PET_SPOTS
     var petsLoading = Promise.all(PETS.map(function (p) {
       var room = null;
       return loadPet(p.id, { height: 0.72, onProgress: progress(PETS.indexOf(p) + 1), canStand: function (x, z) { return canStandIn(room)(x, z); } }).then(function (pet) {
@@ -211,10 +211,11 @@
     var pets = await petsLoading;
     var cast = [];
     pets.forEach(function (pet, i) {
-      var s = house.spots[PETS[i].spot];
+      var s = house.spots[PET_SPOTS[PETS[i].id]] || house.spots[Object.keys(house.spots)[0]]; // 位置点改名了也不至于出错
       pet.root.position.copy(s.position);
       pet.root.rotation.y = s.rotationY;
       pet.root.userData.room = s.room;
+      pet.root.userData.level = s.level;
       pet.setRoom(s.room);
       pet.setFree(params.get("free") !== "0");
       scene.add(pet.root);
@@ -227,7 +228,8 @@
     var goal = null;
     function frame(roomId, instant) {
       var r = roomId ? house.rooms[roomId] : null;
-      var target = r ? r.center.clone().setY(0.9) : new THREE.Vector3(0, 0.6, 0.2);
+      var lv = house.view.level, elev = r ? r.elev : lv === null ? 0 : house.levels.filter(function (l) { return l.level === lv; })[0].elev;
+      var target = r ? r.center.clone().setY(elev + 0.9) : new THREE.Vector3(0, elev + 0.6, 0.2);
       var size = r ? Math.max(r.x1 - r.x0, r.z1 - r.z0) : 11;
       // 按窄的那个方向（竖屏手机是水平方向）把整个房间装进画面
       var half = Math.tan(THREE.MathUtils.degToRad(camera.fov / 2)) * Math.min(1, camera.aspect);
@@ -246,15 +248,21 @@
       buttons[id] = b;
       return b;
     }
-    function showRoom(id, instant) {
-      house.setView({ room: id });
-      cast.forEach(function (a) { a.visible = !id || a.userData.room === id; });
-      Object.keys(buttons).forEach(function (k) { if (k.indexOf("room:") === 0) buttons[k].classList.toggle("on", k === "room:" + (id || "")); });
+    // 房间按钮按模型里的房间（tools/build_house.py 的户型）生成，改户型不用改这里。
+    // 只有一层时“全屋”加各房间；有楼上时每层一个按钮（看到那层为止，上面的藏起来），再跟着那层的房间
+    function showRoom(id, instant, level) {
+      if (id) level = house.rooms[id].level;
+      else if (level === undefined) level = null;
+      house.setView({ room: id, level: level });
+      cast.forEach(function (a) { a.visible = id ? a.userData.room === id : level === null || a.userData.level <= level; });
+      var on = id ? "room:" + id : level === null ? "room:" : "level:" + level;
+      Object.keys(buttons).forEach(function (k) { if (/^(room|level):/.test(k)) buttons[k].classList.toggle("on", k === on); });
       frame(id, instant);
     }
     button("room:", "全屋", function () { showRoom(null); });
-    ["living", "kitchen", "study", "bedroom", "entry"].forEach(function (id) {
-      button("room:" + id, house.rooms[id].label, function () { showRoom(id); });
+    house.levels.forEach(function (l) {
+      if (house.levels.length > 1) button("level:" + l.level, l.label, function () { showRoom(null, false, l.level); });
+      l.rooms.forEach(function (id) { button("room:" + id, house.rooms[id].label, function () { showRoom(id); }); });
     });
     bar.appendChild(Object.assign(document.createElement("span"), { className: "gap" }));
     // 出门：回到噜噜岛，镜头停在门口

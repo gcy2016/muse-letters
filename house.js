@@ -6,9 +6,12 @@
 //   scene.add(house.root);
 //   house.update(camera);              // 每帧调用：挡住视线的墙自动藏起来（像娃娃屋那样剖开看）
 //   house.setView({ room: "living" }); // 只看一个房间；{ room: null } 回到全屋；{ walls: "full" | "low" } 内墙全高 / 矮墙
-//   house.rooms.living                 // { id, label, x0, x1, z0, z1, center }
-//   house.spots.sofa                   // { id, label, room, position, rotationY }：角色站在这里、朝这个方向
-//   house.colliders                    // [{ x0, z0, x1, z1, kind, name }]：墙和家具在地面上的占地，以后操控角色走路时挡路用
+//   house.rooms.living                 // { id, label, level, elev, x0, x1, z0, z1, center }：level 第几层（0 是一楼），elev 这层地面离地多高
+//   house.levels                       // [{ level, elev, label, rooms: [房间 id] }]：有哪几层，从下往上；rooms 从后往前、从左往右排
+//   house.setView({ level: 1 })        // 只看到第几层（上面的楼层藏起来，像掀开楼板看）；{ level: null } 全部显示。看某个房间时自动按那个房间的楼层
+//   house.spots.sofa                   // { id, label, room, level, position, rotationY }：角色站在这里、朝这个方向
+//   house.colliders                    // [{ x0, z0, x1, z1, level, kind, name }]：墙和家具在地面上的占地（分楼层），以后操控角色走路时挡路用
+//   house.levelAt(y)                   // 高度 y（房子坐标）在第几层；house.roomAt(x, z, level) 某层上 (x, z) 在哪个房间
 //   house.pick(raycaster)              // 点到了什么：{ id: "computer" | "board" | "door" | "tv" | "sofa" | "bed", object, point } 或 null
 //   house.setView({ exterior: true })  // 从外面看：盖上屋顶、墙全部立起来（放进小岛等外部场景时用）；false 回到剖开看
 //   house.setDoor(true)                // 入户门开 / 关（会慢慢转过去）；house.doorOpen 是当前目标状态
@@ -37,7 +40,7 @@ export function loadHouse(url, onProgress) {
   }).then(function (gltf) { return makeHouse(gltf.scene); });
 }
 
-function makeHouse(root) {
+export function makeHouse(root) { // 已经加载好的场景（gltf.scene）直接造房子，测试用
   root.name = "house";
   var rooms = {}, spots = {}, walls = [], items = [], floors = [], interactables = {}, bases = [], roof = null;
   var wallById = {};
@@ -49,9 +52,11 @@ function makeHouse(root) {
       o.receiveShadow = true;
     }
     if (d.kind === "room") {
-      rooms[d.id] = { id: d.id, label: d.label, x0: d.x0, x1: d.x1, z0: d.z0, z1: d.z1, center: new THREE.Vector3((d.x0 + d.x1) / 2, 0, (d.z0 + d.z1) / 2) };
+      // 楼层：模型里没写 level / elev 的（只有一层时）当一楼
+      var elev = d.elev || 0;
+      rooms[d.id] = { id: d.id, label: d.label, level: d.level || 0, elev: elev, x0: d.x0, x1: d.x1, z0: d.z0, z1: d.z1, center: new THREE.Vector3((d.x0 + d.x1) / 2, elev, (d.z0 + d.z1) / 2) };
     } else if (d.kind === "spot") {
-      spots[d.id] = { id: d.id, label: d.label, room: d.room, position: o.position.clone(), rotationY: o.rotation.y };
+      spots[d.id] = { id: d.id, label: d.label, room: d.room, level: 0, position: o.position.clone(), rotationY: o.rotation.y };
     } else if (d.kind === "wall") {
       var w = { node: o, id: o.name.replace(/^wall_/, ""), axis: d.axis, c: d.c, roomA: d.roomA, roomB: d.roomB, exterior: !!d.exterior, pieces: [] };
       o.children.forEach(function (p) { w.pieces.push({ node: p, part: p.userData.part, h: p.userData.h || 1 }); });
@@ -63,11 +68,37 @@ function makeHouse(root) {
     } else if (d.kind === "floor") {
       floors.push({ node: o, room: d.room });
     } else if (d.kind === "base") {
+      o.userData.level = d.level || 0; // 底座、楼板：楼上的楼板写 level
       bases.push(o);
     } else if (d.kind === "roof") {
       roof = o;
     }
   });
+
+  // 楼层：每层有哪些房间；墙、家具、地板、位置点按所属房间定在哪层（墙看它两边的房间，取高的那层）
+  var levels = [];
+  Object.keys(rooms).forEach(function (id) {
+    var r = rooms[id], lv = levels.filter(function (l) { return l.level === r.level; })[0];
+    if (!lv) levels.push(lv = { level: r.level, elev: r.elev, label: r.level + 1 + "楼", rooms: [] });
+    lv.rooms.push(id);
+  });
+  if (!levels.length) levels.push({ level: 0, elev: 0, label: "1楼", rooms: [] });
+  levels.sort(function (a, b) { return a.level - b.level; });
+  // 每层的房间按位置排（从后往前、从左往右），房间按钮就按这个顺序
+  levels.forEach(function (l) {
+    l.rooms.sort(function (a, b) { var A = rooms[a], B = rooms[b]; return Math.abs(A.z0 - B.z0) > 0.5 ? A.z0 - B.z0 : A.x0 - B.x0; });
+  });
+  function levelOfRoom(id) { return rooms[id] ? rooms[id].level : 0; }
+  // 高度 y 在第几层：地面不高于 y 的最高那层
+  function levelAt(y) {
+    var found = levels[0].level;
+    levels.forEach(function (l) { if (l.elev <= y + 0.05) found = l.level; });
+    return found;
+  }
+  walls.forEach(function (w) { w.level = Math.max(levelOfRoom(w.roomA), levelOfRoom(w.roomB)); });
+  items.forEach(function (it) { it.level = levelOfRoom(it.room); });
+  floors.forEach(function (f) { f.level = levelOfRoom(f.room); });
+  Object.keys(spots).forEach(function (id) { spots[id].level = levelOfRoom(spots[id].room); });
 
   // 电脑屏幕换成亮着的桌面（以后点开就是入口界面）
   if (interactables.computer) {
@@ -95,7 +126,7 @@ function makeHouse(root) {
     interactables.door.getWorldPosition(doorPosition);
     doorPosition.z += 0.6; // 门外台阶上
   }
-  var view = { room: null, walls: "low", exterior: false };
+  var view = { room: null, level: null, walls: "low", exterior: false };
   var doorOpen = false;
   function setDoor(open) { api.doorOpen = doorOpen = !!open; }
 
@@ -106,7 +137,7 @@ function makeHouse(root) {
   Object.keys(rooms).forEach(function (id) {
     var r = rooms[id];
     var m = new THREE.Mesh(new THREE.BoxGeometry(r.x1 - r.x0, 0.2, r.z1 - r.z0), baseMat);
-    m.position.set((r.x0 + r.x1) / 2, -0.145, (r.z0 + r.z1) / 2);
+    m.position.set((r.x0 + r.x1) / 2, r.elev - 0.145, (r.z0 + r.z1) / 2);
     m.receiveShadow = true;
     m.visible = false;
     root.add(m);
@@ -117,14 +148,15 @@ function makeHouse(root) {
   root.updateMatrixWorld(true);
   var colliders = [];
   var box = new THREE.Box3();
-  function addCollider(obj, kind) {
+  function addCollider(obj, kind, level) {
     box.setFromObject(obj);
-    if (box.isEmpty() || box.max.y < 0.05) return;
-    colliders.push({ x0: box.min.x, z0: box.min.z, x1: box.max.x, z1: box.max.z, kind: kind, name: obj.name });
+    var floorY = (levels.filter(function (l) { return l.level === level; })[0] || levels[0]).elev;
+    if (box.isEmpty() || box.max.y < floorY + 0.05) return;
+    colliders.push({ x0: box.min.x, z0: box.min.z, x1: box.max.x, z1: box.max.z, level: level, kind: kind, name: obj.name });
   }
-  items.forEach(function (it) { if (it.solid) addCollider(it.node, "furniture"); });
+  items.forEach(function (it) { if (it.solid) addCollider(it.node, "furniture", it.level); });
   walls.forEach(function (w) {
-    w.pieces.forEach(function (p) { if (p.part === "full" || p.part === "below" || p.part === "fixed" && p.node.isMesh) addCollider(p.node, "wall"); });
+    w.pieces.forEach(function (p) { if (p.part === "full" || p.part === "below" || p.part === "fixed" && p.node.isMesh) addCollider(p.node, "wall", w.level); });
   });
 
   var dir = new THREE.Vector3();
@@ -133,11 +165,13 @@ function makeHouse(root) {
 
   function setView(opts) {
     if ("room" in opts) view.room = opts.room && rooms[opts.room] ? opts.room : null;
+    if ("level" in opts) view.level = levels.some(function (l) { return l.level === opts.level; }) ? opts.level : null;
     if (opts.walls) view.walls = opts.walls;
     if ("exterior" in opts) view.exterior = !!opts.exterior;
   }
 
-  // 按相机方向决定每面墙：全高 / 变矮（矮墙模式下的内墙）/ 只留墙脚（挡住视线的墙）/ 不显示（别的房间）
+  // 按相机方向决定每面墙：全高 / 变矮（矮墙模式下的内墙）/ 只留墙脚（挡住视线的墙）/ 不显示（别的房间、上面的楼层）
+  // 有楼层时：看某个房间只显示这一间；看某一层时这层照上面的规则剖开，上面的楼层整层藏起来，下面的楼层照原样立着（被这层的楼板挡着）
   function update(camera) {
     // 门慢慢转到目标角度（往屋里开）
     if (doorHinge) {
@@ -147,6 +181,7 @@ function makeHouse(root) {
     if (roof) roof.visible = view.exterior;
     if (view.exterior) { showAll(); return; }
     var R = view.room;
+    var L = R ? rooms[R].level : view.level; // 看到第几层；null 是全部楼层
     inv.copy(root.matrixWorld).invert();
     dir.copy(camera.position).applyMatrix4(inv); // 相机在房子坐标里的位置
     center.copy(R ? rooms[R].center : new THREE.Vector3());
@@ -157,6 +192,8 @@ function makeHouse(root) {
       if (R) {
         if (w.roomA !== R && w.roomB !== R) show = false;
         else if ((w.roomB === R ? n : -n) < -0.2) height = STUB_WALL;
+      } else if (L !== null && w.level !== L) {
+        show = w.level < L;
       } else if (w.exterior) {
         if ((w.roomA === "" ? -n : n) > 0.2) height = STUB_WALL;
       } else if (view.walls === "low") {
@@ -173,12 +210,12 @@ function makeHouse(root) {
       });
     });
     items.forEach(function (it) {
-      var vis = !R || it.room === R;
+      var vis = R ? it.room === R : L === null || it.level <= L;
       if (vis && it.wallmount) { var w = wallById[it.wallmount]; vis = w ? w.shown && !w.cut : true; }
       it.node.visible = vis;
     });
-    floors.forEach(function (f) { f.node.visible = !R || f.room === R; });
-    bases.forEach(function (b) { b.visible = !R; });
+    floors.forEach(function (f) { f.node.visible = R ? f.room === R : L === null || f.level <= L; });
+    bases.forEach(function (b) { b.visible = !R && (L === null || b.userData.level <= L); });
     Object.keys(roomBases).forEach(function (id) { roomBases[id].visible = id === R; });
   }
 
@@ -213,9 +250,11 @@ function makeHouse(root) {
     return null;
   }
 
-  function roomAt(x, z) {
+  // level 不传时哪层都算（先找到的那个）
+  function roomAt(x, z, level) {
     for (var id in rooms) {
       var r = rooms[id];
+      if (level != null && r.level !== level) continue;
       if (x >= r.x0 && x <= r.x1 && z >= r.z0 && z <= r.z1) return id;
     }
     return null;
@@ -233,12 +272,12 @@ function makeHouse(root) {
       var d = (w.axis === "x" ? pos.z : pos.x) - w.c; // 物件在墙的哪一侧、多远
       if (d * along <= 0 || Math.abs(d) > bestD) return;
       var a = w.axis === "x" ? pos.x : pos.z, lo = w.axis === "x" ? w.box.min.x : w.box.min.z, hi = w.axis === "x" ? w.box.max.x : w.box.max.z;
-      if (a < lo - 0.05 || a > hi + 0.05 || pos.y > w.box.max.y + 0.1) return;
+      if (a < lo - 0.05 || a > hi + 0.05 || pos.y > w.box.max.y + 0.1 || pos.y < w.box.min.y - 0.1) return; // 别的楼层的墙不算
       best = w; bestD = Math.abs(d);
     });
     return best;
   }
-  // 往房子里加东西。opts.auto：按位置自动算房间（物件正前方 0.3 米落在哪个房间）和贴着的墙；也可以直接给 room、wall
+  // 往房子里加东西。opts.auto：按位置自动算房间（物件正前方 0.3 米落在哪个房间，楼层按物件的高度 y）和贴着的墙；也可以直接给 room、wall
   // opts.floor：放在地上的（靠墙根的快递盒），不算挂在墙上，墙剖开削矮时不跟着藏
   function addItem(obj, opts) {
     opts = opts || {};
@@ -247,17 +286,18 @@ function makeHouse(root) {
       var f = obj.rotation.y, p = obj.position;
       var w = wallBehind(p, f);
       if (w && !opts.floor) wall = w.id;
-      room = roomAt(p.x + Math.sin(f) * 0.3, p.z + Math.cos(f) * 0.3) || roomAt(p.x, p.z) || "";
+      var lv = levelAt(p.y);
+      room = roomAt(p.x + Math.sin(f) * 0.3, p.z + Math.cos(f) * 0.3, lv) || roomAt(p.x, p.z, lv) || "";
     }
     if (opts.interact) { obj.userData.interact = opts.interact; interactables[opts.interact] = obj; }
     obj.traverse(function (o) { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } });
     root.add(obj);
-    items.push({ node: obj, room: room, wallmount: wall, solid: false });
+    items.push({ node: obj, room: room, level: room ? levelOfRoom(room) : levelAt(obj.position.y), wallmount: wall, solid: false });
     return { room: room, wall: wall };
   }
 
-  var api = { root: root, addItem: addItem, rooms: rooms, spots: spots, colliders: colliders, interactables: interactables, walls: walls, bounds: bounds,
-    view: view, setView: setView, update: update, pick: pick, roomAt: roomAt, setDoor: setDoor, doorOpen: false, doorPosition: doorPosition };
+  var api = { root: root, addItem: addItem, rooms: rooms, levels: levels, spots: spots, colliders: colliders, interactables: interactables, walls: walls, bounds: bounds,
+    view: view, setView: setView, update: update, pick: pick, roomAt: roomAt, levelAt: levelAt, setDoor: setDoor, doorOpen: false, doorPosition: doorPosition };
   return api;
 }
 

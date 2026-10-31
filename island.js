@@ -3,6 +3,11 @@
 // 小岛单位是米，和房子一样。小miu 和 lulu 先只待在房子里。
 // 天气：岛上的天空跟着天气变（19 点前今天、之后明天，weather-fx.js），数据见 weather-data.js；天气牌只在屋里玄关（house.html）
 // ?from=house：从屋里出来，镜头停在门口；?wx=小雨 用示例数据看某种天气的效果（?wx=demo 示例原样）
+//
+// 【以后往岛上加东西时注意】这个文件现在把岛上所有东西（地形、树、石头、牌子、灯、天空）都写在一起，不要再一直往里堆：
+// 加新设施（游乐园、花园……）时，把它单独写成一个文件（或几个设施合成一个文件），这里只负责 import 进来、按 layout.js 的位置放好。
+// 不用一个设施一个文件，分成几大块就行。拆的时候不能让首页变慢：首屏要看到的照常加载，大的模型（GLB）等需要时
+// （镜头靠近、点进去）再下载。哪天岛上的东西多到打开慢了，再按需加载、远处换简化模型。
 import * as THREE from "three";
 import { OrbitControls } from "./lib/OrbitControls.js";
 import { loadHouse } from "./house.js";

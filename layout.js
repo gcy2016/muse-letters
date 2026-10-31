@@ -35,6 +35,9 @@ export var ISLAND = {
   lamp: { onHouse: true, pos: [1.2, 1.70, 3.5], facing: "+z", scale: 1.4 },
 };
 
+// 小miu、lulu 进屋时站在哪：房子里的位置点（tools/build_house.py 的 SPOTS 里的 id）。没有这个位置点时站到第一个位置点
+export var PET_SPOTS = { miu: "living", lulu: "tv" };
+
 // 要挂进屋里的照片，文件放 assets/house/photos/。一般用 photo-lock.html 以大门锁密码加密（.enc）；
 // plain: true 的是主人说过不用加密、明文放的照片（.jpg），photo-lock.html 里不列出来
 export var PHOTO_SLOTS = {
