@@ -17,6 +17,7 @@ import { getWeather, skyKind, skyPlace, showOffset, beijingYmd as beijingDay, so
 import { makeWeatherFx } from "./weather-fx.js";
 import { ISLAND as ISLAND_LAYOUT, arrange } from "./layout.js";
 import { mountBoardButton } from "./board-ui.js";
+import { makeFuSign } from "./fu-sign.js";
 
 var params = new URLSearchParams(location.search);
 var canvas = document.getElementById("scene");
@@ -197,6 +198,11 @@ island.add(nameSign);
 var homeSign = thickBoard("assets/island/home-plaque.webp", 1.1, 1.1 * 381 / 571, 0.04, 2);
 islandPlace(homeSign, ISLAND_LAYOUT.homeSign);
 island.add(homeSign);
+
+// 大门口的“福”字斗方：红底金字、正贴；位置在布置表 layout.js
+var doorFu = makeFuSign();
+islandPlace(doorFu, ISLAND_LAYOUT.doorFu);
+island.add(doorFu);
 
 // 煤油灯：挂在门右边的墙上，铁架子伸出来吊一盏玻璃灯，灯罩里暖黄的光；左边离门框 0.85 米，同样留着贴对联
 var lamp = new THREE.Group();

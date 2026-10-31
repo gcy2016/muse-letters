@@ -33,6 +33,8 @@ export var ISLAND = {
   homeSign: { onHouse: true, pos: [-2.06, 1.65, 3.53], facing: "+z" },
   // 煤油灯：门右边的墙上
   lamp: { onHouse: true, pos: [1.2, 1.70, 3.5], facing: "+z", scale: 1.4 },
+  // 大门口的“福”字斗方：贴在门框左边、门牌右边的空墙上（别和门框、门牌、煤油灯挤在一起）
+  doorFu: { onHouse: true, pos: [-1.08, 1.62, 3.512], facing: "+z" },
 };
 
 // 小miu、lulu 进屋时站在哪：房子里的位置点（tools/build_house.py 的 SPOTS 里的 id）。没有这个位置点时站到第一个位置点
