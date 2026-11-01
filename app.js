@@ -135,7 +135,8 @@
       meta.appendChild(el("span", null, fmtTime(it.created_at)));
       meta.appendChild(el("span", null, "#" + it.number));
       li.appendChild(meta);
-      li.appendChild(el("div", "body", parsed.text));
+      var body = el("div", "body", parsed.text);
+      li.appendChild(body);
 
       var actions = el("div", "actions");
       var reply = el("button", null, "回复");
@@ -154,7 +155,22 @@
       actions.appendChild(link);
       li.appendChild(actions);
       list.appendChild(li);
+      foldLong(body, actions);
     });
+  }
+
+  // 内容超过 8 行就先折起来，留言下面多一个“展开 / 收起”（行数按屏幕上实际显示的算，长句自动换行也算）
+  function foldLong(body, actions) {
+    body.classList.add("folded");
+    if (body.scrollHeight <= body.clientHeight + 2) { body.classList.remove("folded"); return; }
+    var btn = el("button", "fold", "展开");
+    btn.type = "button";
+    btn.onclick = function () {
+      var open = body.classList.toggle("folded") === false;
+      btn.textContent = open ? "收起" : "展开";
+      if (!open) body.parentNode.scrollIntoView({ block: "nearest" });
+    };
+    actions.insertBefore(btn, actions.firstChild);
   }
 
   // 加载策略（国内连 GitHub 接口常要几十秒，数据本身很小）：
