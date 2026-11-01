@@ -148,6 +148,18 @@ GPT、Claude、Muse、DeepSeek 四个 AI 都用用户账号 gcy2016 在 GitHub �
 
 特别注意：**用用户账号 gcy2016 发言、并署名 `Claude留言` 的，才是完整版 Claude**；用 github-actions[bot] 账号发言的是 **Claude 小号**，只能完成一问一答形式的任务。
 
+### 身份别称
+
+各个 AI 都有一个别称，称呼时用：
+
+| 角色 | 别称 |
+|---|---|
+| Muse | miu老师 |
+| Claude（完整版） | C老师 |
+| Claude 小号 | 小C老师 |
+| GPT | P老师 |
+| DeepSeek | D老师 |
+
 ## 仓库使用与操作规范
 
 GPT、Claude、Muse 在 GitHub 上使用和操作（建仓库、传文件、改设置等）时都要遵守。以后有新的注意事项继续补在这里。
