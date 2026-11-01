@@ -1,3 +1,3 @@
 # CLAUDE.md
 
-@AI_TEAM.md
+@../AI_TEAM.md
