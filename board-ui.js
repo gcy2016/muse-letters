@@ -12,8 +12,8 @@ var STYLE = {
   m0: { bg: "#f0f6ff" }, m1: { bg: "#fff0f3" },
   o0: { bg: "#fdf3e3", bar: "#b45309", who: "#b45309", pre: "♛ " }, o1: { bg: "#f4effd", bar: "#7c3aed", who: "#7c3aed", pre: "♛ " },
   claude: { bg: "#ecf7f5", bar: "#0f766e", who: "#0f766e", pre: "</> " },
-  gpt: { bg: "#f1f2f4", bar: "#374151", who: "#374151", pre: "✦ " },
-  deepseek: { bg: "#eef1ff", bar: "#4d6bfe", who: "#4d6bfe", pre: "◆ " },
+  gpt: { bg: "#f1f2f4", bar: "#374151", who: "#374151" },
+  deepseek: { bg: "#eef1ff", bar: "#4d6bfe", who: "#4d6bfe" },
 };
 var CSS =
   "#board-btn{position:fixed;right:14px;bottom:64px;z-index:20;padding:9px 15px;border:none;border-radius:22px;background:#e0607e;color:#fff;" +
@@ -84,7 +84,20 @@ export function makeCorkNotes(house) {
   plane.position.set(center.x, center.y, box.max.z + 0.003);
   holder.add(plane);
 
+  // AI 成员的小头像：第一次用到时下载，下好了重画一次
+  var imgs = {}, lastList = null;
+  function avatarImg(src) {
+    if (!src) return null;
+    if (!imgs[src]) {
+      imgs[src] = new Image();
+      imgs[src].onload = function () { if (lastList) draw(lastList); };
+      imgs[src].src = src;
+    }
+    return imgs[src].complete && imgs[src].naturalWidth ? imgs[src] : null;
+  }
+
   function draw(list) {
+    lastList = list;
     g.fillStyle = "#fdf6f0"; g.fillRect(0, 0, CW, CH);
     g.textBaseline = "alphabetic"; g.textAlign = "left";
     g.fillStyle = "#2b2420"; g.font = "bold 60px " + FONT; g.fillText("噜噜之家留言板", 40, 80);
@@ -108,9 +121,16 @@ export function makeCorkNotes(house) {
       roundRect(g, x, y, w, h, 18); g.fill(); g.stroke();
       if (st.bar) { g.fillStyle = st.bar; roundRect(g, x, y, 8, h, 4); g.fill(); }
       g.font = "bold 34px " + FONT; g.fillStyle = st.who || "#2b2420";
-      var who = (st.pre || "") + n.who;
-      g.fillText(who, x + 28, y + 52);
-      var mx = x + 28 + g.measureText(who).width + 22;
+      var av = avatarImg(n.avatar), nx = x + 28;
+      if (av) {
+        g.save(); g.beginPath(); g.arc(nx + 21, y + 40, 21, 0, Math.PI * 2); g.clip();
+        g.drawImage(av, nx, y + 19, 42, 42); g.restore();
+        g.strokeStyle = "#eadfd6"; g.lineWidth = 2; g.beginPath(); g.arc(nx + 21, y + 40, 21, 0, Math.PI * 2); g.stroke();
+        nx += 52;
+      }
+      var who = (av ? "" : st.pre || "") + n.who;
+      g.fillText(who, nx, y + 52);
+      var mx = nx + g.measureText(who).width + 22;
       g.font = "30px " + FONT; g.fillStyle = "#8a7d74";
       g.fillText(fmtTime(n.created_at) + "　#" + n.number, mx, y + 52);
       g.font = "36px " + FONT; g.fillStyle = "#2b2420";

@@ -121,7 +121,17 @@
 
       var li = el("li", "msg " + (parsed.claude ? "claude" : oi >= 0 ? "owner o" + oi : ag ? "agent " + ag.cls : "m" + idx));
       var meta = el("div", "meta");
-      meta.appendChild(el("span", "who", who));
+      // AI 成员名字前放小头像（App 图标），主人本人还是小皇冠
+      var avatar = parsed.claude ? cfg.claudeAvatar : oi >= 0 ? "" : ag ? ag.avatar : members[idx].avatar;
+      var whoEl = el("span", "who");
+      if (avatar) {
+        var img = el("img", "avatar");
+        img.src = avatar; img.alt = ""; img.width = img.height = 20;
+        whoEl.appendChild(img);
+        li.className += " has-avatar";
+      }
+      whoEl.appendChild(document.createTextNode(who));
+      meta.appendChild(whoEl);
       meta.appendChild(el("span", null, fmtTime(it.created_at)));
       meta.appendChild(el("span", null, "#" + it.number));
       li.appendChild(meta);

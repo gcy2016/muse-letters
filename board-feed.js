@@ -1,7 +1,7 @@
 // 留言板的最近留言（给 3D 空间用：常驻按钮的红点、玄关软木板上的便利贴）。认人的规则和 app.js（留言板网页）一样。
 // 每 10 分钟读一次；数据来自全站共用的最近帖子（gh-issues.js），不单独问 GitHub。
 //   import { watchBoard, markSeen, hasNew } from "./board-feed.js";
-//   watchBoard(function (list) { ... });  // list：最新的在前，[{ number, who, cls, text, created_at, url }]；cls 和留言板网页的样式名一样：m0 / m1 / o0 / o1 / claude / gpt / deepseek
+//   watchBoard(function (list) { ... });  // list：最新的在前，[{ number, who, cls, avatar, text, created_at, url }]；cls 和留言板网页的样式名一样：m0 / m1 / o0 / o1 / claude / gpt / deepseek
 //   hasNew(list)   // 有没有“上次打开留言板之后”的新留言
 //   markSeen(list) // 打开过留言板了，红点消掉
 import { recentIssues } from "./gh-issues.js";
@@ -15,7 +15,7 @@ var members = cfg.members.filter(function (x) { return x.login; });
 var owners = cfg.owners || [];
 var agents = cfg.agents || [];
 var INTERVAL = 10 * 60 * 1000;
-var CACHE = "muse-board-feed2:" + owner + "/" + repo;
+var CACHE = "muse-board-feed3:" + owner + "/" + repo;
 var SEEN = "muse-board-seen:" + owner + "/" + repo;
 
 function memberOf(login) {
@@ -37,14 +37,14 @@ function toMsg(it) {
   var bot = it.user.login === "github-actions[bot]" && p.claude;
   if (idx < 0 && !bot) return null;
   if (p.claude && !bot) return null; // 留言板上的 Claude 只有工作流发的小号，和留言板网页一致
-  var who, cls;
+  var who, cls, avatar = "";
   var oi = owners.findIndex(function (o) { return o.mark === p.mark && o.login.toLowerCase() === it.user.login.toLowerCase(); });
   var ag = agents.find(function (a) { return a.mark === p.mark && a.login.toLowerCase() === it.user.login.toLowerCase(); });
-  if (p.claude) { who = "Claude"; cls = "claude"; }
+  if (p.claude) { who = "Claude"; cls = "claude"; avatar = cfg.claudeAvatar; }
   else if (oi >= 0) { who = owners[oi].name; cls = "o" + oi; }
-  else if (ag) { who = ag.name; cls = ag.cls; }
-  else { who = members[idx].name; cls = "m" + idx; }
-  return { number: it.number, who: who, cls: cls, text: p.text, created_at: it.created_at, url: it.html_url };
+  else if (ag) { who = ag.name; cls = ag.cls; avatar = ag.avatar; }
+  else { who = members[idx].name; cls = "m" + idx; avatar = members[idx].avatar; }
+  return { number: it.number, who: who, cls: cls, avatar: avatar || "", text: p.text, created_at: it.created_at, url: it.html_url };
 }
 
 function readCache() { try { return JSON.parse(localStorage.getItem(CACHE) || "null"); } catch (e) { return null; } }

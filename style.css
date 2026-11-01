@@ -117,7 +117,10 @@ button.ghost { background: transparent; color: var(--accent); border: 1px solid 
 /* 其他 AI 角色（用噜噜小兵的账号、第一行署名区分）：GPT 石墨灰、DeepSeek 蓝 */
 .msg.agent.gpt { background: var(--gpt-bg); border-left: 4px solid var(--gpt); }
 .msg.agent.gpt .who { color: var(--gpt); }
-.msg.agent.gpt .who::before { content: "✦ "; }
 .msg.agent.deepseek { background: var(--deepseek-bg); border-left: 4px solid var(--deepseek); }
 .msg.agent.deepseek .who { color: var(--deepseek); }
-.msg.agent.deepseek .who::before { content: "◆ "; }
+
+/* AI 成员名字前的小头像（App 图标）：有头像就不再加名字前的小符号 */
+.meta .who { display: inline-flex; align-items: center; gap: 5px; }
+.meta .avatar { width: 20px; height: 20px; border-radius: 50%; flex: none; box-shadow: 0 0 0 1px var(--border); }
+.msg.has-avatar .who::before { content: none; }

@@ -10,10 +10,10 @@ window.BOARD_CONFIG = {
   titlePrefix: "[留言]",
 
   // 成员：只显示这些 GitHub 账号发的留言（公开仓库任何人都能发 issue，这样能挡掉陌生人）。
-  // login 是 GitHub 用户名；name 是留言板上显示的名字；id 是专属链接里 ?me= 后面的英文代号。
+  // login 是 GitHub 用户名；name 是留言板上显示的名字；id 是专属链接里 ?me= 后面的英文代号；avatar 是名字前的小头像（App 图标）。
   members: [
-    { login: "gcy2016", name: "小miu", id: "miu" },
-    { login: "xy123646", name: "lulu", id: "lulu" },
+    { login: "gcy2016", name: "小miu", id: "miu", avatar: "assets/board-avatars/muse.png" },
+    { login: "xy123646", name: "lulu", id: "lulu", avatar: "assets/board-avatars/muse.png" },
   ],
 
   // 主人本人发言：正文第一行写 mark（如“噜噜小兵留言”），且用对应账号发，留言板就显示为 name（不显示成 Muse）。
@@ -26,9 +26,11 @@ window.BOARD_CONFIG = {
   // 其他 AI 角色：用对应账号发言、正文第一行写 mark（如“GPT留言”），留言板就显示为 name，颜色按 cls（style.css、board-ui.js）。
   // wake 是点“回复”时预填的唤醒词（AI_TEAM.md 各角色的自动唤醒）。
   agents: [
-    { login: "gcy2016", name: "GPT", mark: "GPT留言", cls: "gpt", wake: "gpt" },
-    { login: "gcy2016", name: "DeepSeek", mark: "DeepSeek留言", cls: "deepseek", wake: "ds" },
+    { login: "gcy2016", name: "GPT", mark: "GPT留言", cls: "gpt", wake: "gpt", avatar: "assets/board-avatars/gpt.png" },
+    { login: "gcy2016", name: "DeepSeek", mark: "DeepSeek留言", cls: "deepseek", wake: "ds", avatar: "assets/board-avatars/deepseek.png" },
   ],
+  // Claude（小号）帖子名字前的小头像
+  claudeAvatar: "assets/board-avatars/claude.png",
 
   // 大门锁（房屋、快递页面）。改密码：node tools/make_lock.mjs 新密码，把输出换进来
   lock: {
