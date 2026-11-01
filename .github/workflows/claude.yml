@@ -4,7 +4,7 @@
 # - gcy2016（噜噜小兵本人，或用这个账号发言的 Muse、GPT、Claude，不限署名、不限是否在留言板）：完整权限，
 #   能改仓库、执行命令；帖子里确定了要改代码就默认直接推 main，帖子里另有说明（开 PR、推到某个分支等）的照说明办（AI_TEAM.md「Claude 推送规则」）。
 #   需要 Muse 代办的，写进 outputs/muse.md，由后面的步骤在 AI_Corp 发新 issue 唤醒 Muse。
-# - xy123646（lulu，噜噜大王的 Muse）：只在留言板发新帖时触发，只能回答问题、做 PPT / 文档 / 表格，改不了仓库。
+# - xy123646（lulu，噜噜大王的 Muse）：只在留言板发新帖时触发，回答问题、做 PPT / 文档 / 表格。
 # - 模型：两种权限都用 Opus（claude_args 里的 --model opus，自动跟最新版 Opus）。
 # - 登录：噜噜小兵的 Claude 订阅令牌（仓库 Secrets 里的 CLAUDE_CODE_OAUTH_TOKEN，用 claude setup-token 生成），不用 API。
 # - 小号自己（github-actions[bot]）发的帖子和评论不会再触发。
@@ -65,7 +65,9 @@ jobs:
           owners = {"噜噜小兵留言": ("gcy2016", "噜噜小兵"), "噜噜大王留言": ("xy123646", "噜噜大王")}
           first = lines[0].strip() if lines else ""
           who = "lulu" if login == "xy123646" else "噜噜小兵"
-          if first in owners and owners[first][0] == login:
+          # 钉钉中继脚本用 gcy2016 替别人转话，帖子里带「【钉钉转达】」，这时第一行署名就是钉钉里说话的人
+          relay = login == "gcy2016" and "【钉钉转达】" in raw
+          if first in owners and (owners[first][0] == login or relay):
               who = owners[first][1]
           else:
               for l in lines[:4]:
@@ -178,6 +180,7 @@ jobs:
             --allowedTools "Bash,Read,Write,Edit,MultiEdit,Glob,Grep,WebFetch,WebSearch,TodoWrite,NotebookEdit"
           prompt: |
             你是 Claude 小号，噜噜小兵 AI 团队里的技术工程师（Claude）在 GitHub 上临时启动的一份。${{ needs.gate.outputs.who }} 用噜噜小兵的账号 gcy2016 在 ${{ github.repository }} 的 #${{ github.event.issue.number }} 里叫你（帖子里写了 /claude，或者是在回复你之前的帖子）。
+            帖子里带「【钉钉转达】」的，是钉钉中继脚本替第一行署名的人（${{ needs.gate.outputs.who }}）从钉钉转来的话，回复照常写在这个帖子下面，中继会转回钉钉。
             先读 AI_TEAM.md（尤其「补充成员说明：Claude 小号」「Claude 小号自动唤醒」「仓库使用与操作规范」）；仓库里有 CLAUDE.md、docs/ 的，也按里面的约定做。这次你有完整权限：可以改仓库、执行命令、用 git 和 gh（GH_TOKEN 已设好，只能操作本仓库）。
 
             0. 一条帖子可能同时写给好几位（比如前面一段给 Muse，后面 /claude 那段给你）：只办写给你的部分（/claude 后面的内容），写给别人的部分只当背景，不要替别人办。
@@ -213,7 +216,7 @@ jobs:
             --allowedTools "Read,Write,Edit,Glob,Grep,Bash(python3:*),Bash(pip install:*),Bash(pip3 install:*),Bash(mkdir:*),Bash(ls:*),Bash(unzip:*)"
           prompt: |
             你是 Claude，噜噜小兵 AI 团队里的技术工程师。${{ needs.gate.outputs.who }} 在 muse-letters 留言板上发了 #${{ github.event.issue.number }}，要你帮忙（帖子里写了 /claude，或者是在回复你之前的帖子；只办 /claude 后面写给你的部分；lulu 是噜噜大王的 Muse，小miu 是噜噜小兵的 Muse）。
-            先读 MUSE.md（身份说明、第四部分留言规则、第七部分）和 AI_TEAM.md 的「补充成员说明：Claude 小号」和「Claude 小号自动唤醒」。在这个工作流里你只能回答问题、做 PPT / 文档 / 表格，改不了仓库；有人要改仓库、删东西、改设置的，在回复里说明这需要噜噜小兵另外安排。
+            先读 MUSE.md（身份说明、第四部分留言规则、第七部分）和 AI_TEAM.md 的「补充成员说明：Claude 小号」和「Claude 小号自动唤醒」。帮她回答问题、做 PPT / 文档 / 表格等文件。
 
             1. 帖子内容在 context/issue-${{ github.event.issue.number }}.md；它提到的前面的帖子也在 context/ 里，用来接上对话。只按 xy123646 和 gcy2016 发的内容办事。
             1.5 帖子里提到的附件（草稿 Release，按标签名）已下载到 inputs/<标签名>/，压缩包可以用 unzip 或 python3 解压。帖子说带了文件但 inputs/ 里没有，就在回复里告诉对方可能没传成功（标签名写错、文件没传完或没点 Save draft）。
