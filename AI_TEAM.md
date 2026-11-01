@@ -232,4 +232,4 @@ GPT、Claude、Muse 在 GitHub 上使用和操作（建仓库、传文件、改�
 
 ![AI 团队通讯和管辖关系示意图](https://raw.githubusercontent.com/gcy2016/AI_Corp/main/team/ai-team-relations.png)
 
-> 2026-11-01 草图：橙色实线是管辖，蓝色虚线是通讯。图里海外服务器上的 C老师、P老师、D老师是规划中的样子，还没全部装好，以本文件的文字为准。图片和可编辑的 SVG 在 AI_Corp 的 `team/` 文件夹。
+> 2026-11-01 更新：橙色实线是管辖，蓝色虚线是通讯。和文字不一致时以本文件的文字为准。图片和可编辑的 SVG 在 AI_Corp 的 `team/` 文件夹。
