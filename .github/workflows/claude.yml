@@ -259,7 +259,7 @@ jobs:
             echo "EOF"
           } >> "$GITHUB_OUTPUT"
 
-      # 需要 Muse 代办：在 MUSE_REPO 发新 issue，第一行内容 /小miu（Muse 的哨兵只看新帖，评论和改旧帖都叫不醒）。
+      # 需要 Muse 代办：在 MUSE_REPO 发新 issue，第一行内容 /小miu（Muse 的哨兵新帖和评论都认，改旧帖正文不认；这里发新帖，方便 Muse 单独跟进）。
       # 跨仓库发帖要在 Secrets 里放 AI_CORP_TOKEN（能写 AI_Corp issue 的令牌）；没有就发在本仓库。
       - name: 唤醒 Muse
         id: muse
