@@ -7,9 +7,9 @@
 import * as THREE from "three";
 import { watchBoard, refreshBoard, hasNew, markSeen } from "./board-feed.js";
 
-// 和留言板网页（style.css）一样的颜色：卡片底色、左边色条、名字颜色、名字前的小标记
+// 和留言板网页（style.css）一样的颜色：卡片底色、左边色条、名字颜色、名字前的小标记（有头像时不用）
 var STYLE = {
-  m0: { bg: "#f0f6ff" }, m1: { bg: "#fff0f3" },
+  m0: { bg: "#f0f6ff", bar: "#2563eb", who: "#2563eb" }, m1: { bg: "#fff0f3", bar: "#db2777", who: "#db2777" },
   o0: { bg: "#fdf3e3", bar: "#b45309", who: "#b45309", pre: "♛ " }, o1: { bg: "#f4effd", bar: "#7c3aed", who: "#7c3aed", pre: "♛ " },
   claude: { bg: "#ecf7f5", bar: "#0f766e", who: "#0f766e", pre: "</> " },
   gpt: { bg: "#f1f2f4", bar: "#374151", who: "#374151" },

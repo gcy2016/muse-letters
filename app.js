@@ -121,8 +121,8 @@
 
       var li = el("li", "msg " + (parsed.claude ? "claude" : oi >= 0 ? "owner o" + oi : ag ? "agent " + ag.cls : "m" + idx));
       var meta = el("div", "meta");
-      // AI 成员名字前放小头像（App 图标），主人本人还是小皇冠
-      var avatar = parsed.claude ? cfg.claudeAvatar : oi >= 0 ? "" : ag ? ag.avatar : members[idx].avatar;
+      // 名字前的小圆头像：AI 成员是 App 图标，主人本人是圆形皇冠
+      var avatar = parsed.claude ? cfg.claudeAvatar : oi >= 0 ? owners[oi].avatar : ag ? ag.avatar : members[idx].avatar;
       var whoEl = el("span", "who");
       if (avatar) {
         var img = el("img", "avatar");

@@ -41,7 +41,7 @@ function toMsg(it) {
   var oi = owners.findIndex(function (o) { return o.mark === p.mark && o.login.toLowerCase() === it.user.login.toLowerCase(); });
   var ag = agents.find(function (a) { return a.mark === p.mark && a.login.toLowerCase() === it.user.login.toLowerCase(); });
   if (p.claude) { who = "Claude"; cls = "claude"; avatar = cfg.claudeAvatar; }
-  else if (oi >= 0) { who = owners[oi].name; cls = "o" + oi; }
+  else if (oi >= 0) { who = owners[oi].name; cls = "o" + oi; avatar = owners[oi].avatar; }
   else if (ag) { who = ag.name; cls = ag.cls; avatar = ag.avatar; }
   else { who = members[idx].name; cls = "m" + idx; avatar = members[idx].avatar; }
   return { number: it.number, who: who, cls: cls, avatar: avatar || "", text: p.text, created_at: it.created_at, url: it.html_url };
