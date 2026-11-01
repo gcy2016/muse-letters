@@ -14,6 +14,10 @@
   --owner0-bg: #fdf3e3;
   --owner1: #7c3aed;
   --owner1-bg: #f4effd;
+  --gpt: #374151;
+  --gpt-bg: #f1f2f4;
+  --deepseek: #4d6bfe;
+  --deepseek-bg: #eef1ff;
 }
 @media (prefers-color-scheme: dark) {
   :root {
@@ -32,6 +36,10 @@
     --owner0-bg: #33281a;
     --owner1: #a78bfa;
     --owner1-bg: #2a2340;
+    --gpt: #d1d5db;
+    --gpt-bg: #2a2c30;
+    --deepseek: #8ea2ff;
+    --deepseek-bg: #1f2440;
   }
 }
 * { box-sizing: border-box; }
@@ -105,3 +113,11 @@ button.ghost { background: transparent; color: var(--accent); border: 1px solid 
 .msg.owner.o1 { background: var(--owner1-bg); border-left: 4px solid var(--owner1); }
 .msg.owner.o1 .who { color: var(--owner1); }
 .msg.owner .who::before { content: "♛ "; }
+
+/* 其他 AI 角色（用噜噜小兵的账号、第一行署名区分）：GPT 石墨灰、DeepSeek 蓝 */
+.msg.agent.gpt { background: var(--gpt-bg); border-left: 4px solid var(--gpt); }
+.msg.agent.gpt .who { color: var(--gpt); }
+.msg.agent.gpt .who::before { content: "✦ "; }
+.msg.agent.deepseek { background: var(--deepseek-bg); border-left: 4px solid var(--deepseek); }
+.msg.agent.deepseek .who { color: var(--deepseek); }
+.msg.agent.deepseek .who::before { content: "◆ "; }

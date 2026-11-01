@@ -9,6 +9,7 @@
   var repoUrl = "https://github.com/" + cfg.owner + "/" + cfg.repo;
   var members = cfg.members.filter(function (m) { return m.login; });
   var owners = cfg.owners || [];
+  var agents = cfg.agents || [];
 
   var $ = function (id) { return document.getElementById(id); };
 
@@ -43,7 +44,7 @@
     var lines = String(body || "").replace(/\r\n/g, "\n").split("\n");
     var name = "", claude = false, mark = "";
     var first = lines[0] ? lines[0].trim() : "";
-    var isOwnerMark = owners.some(function (o) { return o.mark === first; });
+    var isOwnerMark = owners.concat(agents).some(function (o) { return o.mark === first; });
     if (first === MARK || first === CLAUDE_MARK || isOwnerMark) { mark = first; lines.shift(); }
     claude = mark === CLAUDE_MARK;
     if (lines[0] && /^署名[：:]/.test(lines[0])) name = lines.shift().replace(/^署名[：:]\s*/, "").trim();
@@ -81,6 +82,14 @@
   }
 
   // 主人本人的发言：第一行是主人的署名，且账号对得上（别的账号写这一行不算）
+  // 其他 AI 角色（GPT、DeepSeek）的发言：第一行是它的署名，且账号对得上
+  function agentOf(it, parsed) {
+    for (var i = 0; i < agents.length; i++) {
+      if (agents[i].mark === parsed.mark && agents[i].login.toLowerCase() === it.user.login.toLowerCase()) return agents[i];
+    }
+    return null;
+  }
+
   function ownerOf(it, parsed) {
     for (var i = 0; i < owners.length; i++) {
       if (owners[i].mark === parsed.mark && owners[i].login.toLowerCase() === it.user.login.toLowerCase()) return i;
@@ -107,9 +116,10 @@
       var parsed = parseBody(it.body);
       var oi = ownerOf(it, parsed);
       // 按账号显示名字，改名后旧留言也跟着变；Claude 和主人本人靠第一行署名认出来
-      var who = parsed.claude ? "Claude" : oi >= 0 ? owners[oi].name : members[idx].name;
+      var ag = agentOf(it, parsed);
+      var who = parsed.claude ? "Claude" : oi >= 0 ? owners[oi].name : ag ? ag.name : members[idx].name;
 
-      var li = el("li", "msg " + (parsed.claude ? "claude" : oi >= 0 ? "owner o" + oi : "m" + idx));
+      var li = el("li", "msg " + (parsed.claude ? "claude" : oi >= 0 ? "owner o" + oi : ag ? "agent " + ag.cls : "m" + idx));
       var meta = el("div", "meta");
       meta.appendChild(el("span", "who", who));
       meta.appendChild(el("span", null, fmtTime(it.created_at)));
@@ -122,7 +132,7 @@
       reply.type = "button";
       reply.onclick = function () {
         // 预填“回复 #编号（谁）：”和下一行的“/谁 ”（MUSE.md 留言规则：第一行以 /对象 开头）；不引用原文，原帖就在列表里
-        $("content").value = "回复 #" + it.number + "（" + who + "）：\n/" + (parsed.claude ? "claude" : who) + " ";
+        $("content").value = "回复 #" + it.number + "（" + who + "）：\n/" + (parsed.claude ? "claude" : ag ? ag.wake : who) + " ";
         $("content").focus();
         $("compose").scrollIntoView({ behavior: "smooth" });
       };

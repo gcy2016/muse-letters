@@ -23,6 +23,13 @@ window.BOARD_CONFIG = {
     { login: "xy123646", name: "噜噜大王", mark: "噜噜大王留言", id: "dawang" },
   ],
 
+  // 其他 AI 角色：用对应账号发言、正文第一行写 mark（如“GPT留言”），留言板就显示为 name，颜色按 cls（style.css、board-ui.js）。
+  // wake 是点“回复”时预填的唤醒词（AI_TEAM.md 各角色的自动唤醒）。
+  agents: [
+    { login: "gcy2016", name: "GPT", mark: "GPT留言", cls: "gpt", wake: "gpt" },
+    { login: "gcy2016", name: "DeepSeek", mark: "DeepSeek留言", cls: "deepseek", wake: "ds" },
+  ],
+
   // 大门锁（房屋、快递页面）。改密码：node tools/make_lock.mjs 新密码，把输出换进来
   lock: {
     salt: "tGsrpv8aRBFV/sHb",
