@@ -170,7 +170,7 @@
       btn.textContent = open ? "收起" : "展开";
       if (!open) body.parentNode.scrollIntoView({ block: "nearest" });
     };
-    actions.insertBefore(btn, actions.firstChild);
+    actions.appendChild(btn); // 放在“回复”“在 GitHub 上看”后面
   }
 
   // 加载策略（国内连 GitHub 接口常要几十秒，数据本身很小）：
