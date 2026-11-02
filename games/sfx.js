@@ -100,8 +100,8 @@
     wake();
     if(muted)return;
     keepRingerOn();
-    if(!unlocked){
-      // 点击当下播一个 1 帧的静音 buffer，钉钉/微信里才算真的解锁
+    if(!unlocked||ctx.state!=='running'){
+      // 点击当下播一个 1 帧的静音 buffer，钉钉/微信里才算真的解锁；被打断后再点会重放
       try{
         var src=ctx.createBufferSource();
         src.buffer=ctx.createBuffer(1,1,22050);
