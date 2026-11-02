@@ -39,14 +39,65 @@
     }catch(e){ctx=null;}
     return ctx;
   }
-  // iOS/Chrome 要求用户先点一下页面才能出声
+  // iOS/Chrome 要求用户先点一下页面才能出声。
+  // 注意几个手机上的坑（电脑 Chrome 上都复现不出来）：
+  //  1) iOS 切到后台/来电/切 App 回来后，状态是 'interrupted' 不是 'suspended'，
+  //     以前只判断 'suspended'，回来后就一直没声音；现在只要不是 'running' 都 resume。
+  //  2) 老 iOS / 钉钉、微信内置浏览器里，光 resume 不一定解锁，要在点击当下真的播一段（静音的）声音。
+  //  3) iPhone 侧边静音开关打开时，WebAudio 默认整个不出声（HTML <audio> 不受影响）。
+  //     新 Safari 用 navigator.audioSession 改成“播放”类型；老的靠播一段静音 <audio> 把音频会话切过去。
+  var unlockedOnce=false,silentTag=null;
+  function wakeCtx(){
+    if(!ctx)return;
+    if(ctx.state!=='running'){try{var p=ctx.resume();if(p&&p.catch)p.catch(function(){});}catch(e){}}
+  }
+  function silentWav(){
+    // 0.5 秒 8kHz 单声道静音 wav
+    var n=4000,b=new Uint8Array(44+n),v=new DataView(b.buffer);
+    function str(o,t){for(var i=0;i<t.length;i++)b[o+i]=t.charCodeAt(i);}
+    str(0,'RIFF');v.setUint32(4,36+n,true);str(8,'WAVE');str(12,'fmt ');
+    v.setUint32(16,16,true);v.setUint16(20,1,true);v.setUint16(22,1,true);
+    v.setUint32(24,8000,true);v.setUint32(28,8000,true);v.setUint16(32,1,true);v.setUint16(34,8,true);
+    str(36,'data');v.setUint32(40,n,true);for(var i=0;i<n;i++)b[44+i]=128;
+    var s='';for(var j=0;j<b.length;j++)s+=String.fromCharCode(b[j]);
+    return 'data:audio/wav;base64,'+btoa(s);
+  }
+  function bypassRingerSwitch(){
+    try{if(navigator.audioSession&&navigator.audioSession.type!=='playback')navigator.audioSession.type='playback';}catch(e){}
+    if(navigator.audioSession||muted)return;
+    if(!/iPhone|iPad|iPod|Macintosh/.test(navigator.userAgent)||!('ontouchend' in document))return;
+    try{
+      if(!silentTag){
+        silentTag=document.createElement('audio');
+        silentTag.setAttribute('x-webkit-airplay','deny');
+        silentTag.setAttribute('playsinline','');
+        silentTag.preload='auto';silentTag.loop=true;silentTag.src=silentWav();
+      }
+      var p=silentTag.play();if(p&&p.catch)p.catch(function(){});
+    }catch(e){}
+  }
   function unlock(){
     if(!init())return;
-    if(ctx.state==='suspended'){try{ctx.resume();}catch(e){}}
+    wakeCtx();
+    if(muted)return;
+    bypassRingerSwitch();
+    if(!unlockedOnce||ctx.state!=='running'){
+      try{
+        var src=ctx.createBufferSource();src.buffer=ctx.createBuffer(1,1,22050);
+        src.connect(ctx.destination);src.start(0);
+        unlockedOnce=true;
+      }catch(e){}
+    }
   }
-  ['pointerdown','touchend','keydown','click'].forEach(function(ev){
+  ['pointerdown','touchstart','touchend','mousedown','keydown','click'].forEach(function(ev){
     window.addEventListener(ev,unlock,{capture:true,passive:true});
   });
+  // 切回页面时把声音叫醒；切走时停掉静音 <audio>，免得锁屏界面出现播放控件
+  document.addEventListener('visibilitychange',function(){
+    if(document.hidden){if(silentTag)try{silentTag.pause();}catch(e){}}
+    else wakeCtx();
+  });
+  window.addEventListener('pageshow',wakeCtx);
 
   // ---------- 基础积木 ----------
   function env(g,t,a,peak,dec){
@@ -185,7 +236,7 @@
     play:function(name,delay,arg){
       if(muted||!S[name])return;
       if(!init())return;
-      if(ctx.state==='suspended'){try{ctx.resume();}catch(e){}}
+      wakeCtx();
       try{S[name](ctx.currentTime+0.005+(delay||0),arg);}catch(e){if(SFX.debug)console.error('SFX '+name,e);}
     },
     // 按结局文字自动判断胜负音
@@ -206,7 +257,9 @@
     setMuted:function(m){
       muted=!!m;
       try{localStorage.setItem('sfx_muted',muted?'1':'0');}catch(e){}
-      if(btn)btn.textContent=muted?'🔇':'🔊';
+      if(btn){btn.textContent=muted?'🔇':'🔊';btn.setAttribute('aria-pressed',muted?'true':'false');}
+      if(muted){if(silentTag)try{silentTag.pause();}catch(e){}}
+      else unlock();
     }
   };
   window.SFX=SFX;
@@ -217,15 +270,17 @@
     if(btn||!document.body)return;
     btn=document.createElement('button');
     btn.type='button';
-    btn.setAttribute('aria-label','声音开关');
+    btn.setAttribute('aria-label','声音开关');btn.setAttribute('aria-pressed',muted?'true':'false');
     btn.textContent=muted?'🔇':'🔊';
     btn.style.cssText='position:fixed;left:10px;bottom:10px;z-index:9999;width:34px;height:34px;border-radius:50%;opacity:.7;'+
       'border:none;background:rgba(0,0,0,.35);color:#fff;font-size:16px;line-height:34px;padding:0;cursor:pointer;'+
       '-webkit-tap-highlight-color:transparent;touch-action:manipulation';
+    // 用 click 切换（各游戏里有 stopPropagation / preventDefault 也不影响按钮本身）；
+    // 打开声音时在这次点击里当场解锁并响一声，让人马上知道“有声音了”
     btn.addEventListener('click',function(e){
       e.stopPropagation();
       SFX.setMuted(!muted);
-      if(!muted)SFX.play('dirtTap');
+      if(!muted)SFX.play('woodCheck');
     });
     document.body.appendChild(btn);
   }
