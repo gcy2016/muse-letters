@@ -32,7 +32,7 @@ html,body{margin:0;height:100%;background:var(--bg);overflow:hidden;touch-action
 .portrait #c1{top:max(14px,env(safe-area-inset-top));transform:rotate(180deg)}
 .ovl{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(30,20,14,.6);z-index:10;padding:16px;overflow:auto}
 .ovl[hidden]{display:none}
-.ovl,.ovl *{touch-action:pan-x pan-y}
+.ovl,.ovl *{touch-action:manipulation}
 .card{background:var(--card);border-radius:18px;padding:22px 22px 18px;width:min(460px,100%);box-shadow:0 10px 40px rgba(0,0,0,.35);max-height:100%;overflow:auto}
 h1{margin:0 0 4px;font-size:30px;letter-spacing:2px;text-align:center}
 h1 small{display:block;font-size:13px;letter-spacing:0;color:var(--muted);font-weight:400;margin-top:4px}

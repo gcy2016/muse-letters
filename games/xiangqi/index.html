@@ -7,7 +7,7 @@
 <style>
   * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
   body { font-family:"PingFang SC","Microsoft YaHei",sans-serif; background:#2c2c34; color:#eee;
-    display:flex; flex-direction:column; align-items:center; min-height:100vh; padding:10px 8px 20px; touch-action:pan-x pan-y; }
+    display:flex; flex-direction:column; align-items:center; min-height:100vh; padding:10px 8px 20px; touch-action:manipulation; }
   #app { width:100%; max-width:480px; }
   #topbar { display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; }
   #status { font-size:15px; font-weight:bold; color:#ffd97a; }
@@ -34,7 +34,7 @@
   #overlay { position:fixed; inset:0; background:rgba(0,0,0,.62); display:none;
     align-items:center; justify-content:center; z-index:40; }
   #overlay.show { display:flex; }
-  #overlay, #overlay * { touch-action:pan-x pan-y; }
+  #overlay, #overlay * { touch-action:manipulation; }
   #ov-card { background:#f5ecd8; color:#333; border-radius:14px; padding:30px 40px; text-align:center;
     box-shadow:0 8px 30px rgba(0,0,0,.5); }
   #ov-text { font-size:30px; font-weight:bold; margin-bottom:18px; }
