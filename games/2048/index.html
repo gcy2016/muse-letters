@@ -30,6 +30,7 @@
     position: relative;
   }
   .cell { background: rgba(238, 228, 218, 0.35); border-radius: 6px; }
+  #board, #board * { touch-action: none; }
   .tile {
     border-radius: 6px; display: flex; align-items: center; justify-content: center;
     font-weight: bold; z-index: 2;
@@ -57,6 +58,7 @@
     display: none; align-items: center; justify-content: center; z-index: 10;
   }
   #overlay.show { display: flex; }
+  #overlay, #overlay * { touch-action: none; }
   .msg { text-align: center; }
   .msg h2 { font-size: 48px; margin-bottom: 16px; }
   .hint { margin-top: 18px; font-size: 13px; color: #a29382; text-align: center; line-height: 1.8; }

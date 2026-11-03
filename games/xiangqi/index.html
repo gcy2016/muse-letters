@@ -7,7 +7,7 @@
 <style>
   * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
   body { font-family:"PingFang SC","Microsoft YaHei",sans-serif; background:#2c2c34; color:#eee;
-    display:flex; flex-direction:column; align-items:center; min-height:100vh; padding:10px 8px 20px; }
+    display:flex; flex-direction:column; align-items:center; min-height:100vh; padding:10px 8px 20px; touch-action:pan-x pan-y; }
   #app { width:100%; max-width:480px; }
   #topbar { display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; }
   #status { font-size:15px; font-weight:bold; color:#ffd97a; }
@@ -15,7 +15,7 @@
   #players .me { color:#ff8a7a; } #players .ai { color:#9ecbff; }
   #board-wrap { width:100%; background:#e9c88f; border-radius:10px; padding:6px;
     box-shadow:0 4px 18px rgba(0,0,0,.45); touch-action:none; }
-  canvas { display:block; width:100%; }
+  canvas { display:block; width:100%; touch-action:none; }
   #controls { display:flex; gap:10px; margin:12px 0; }
   #controls button { flex:1; padding:11px 0; font-size:16px; font-weight:bold; border:none; border-radius:8px;
     background:#4a4a58; color:#fff; cursor:pointer; }
@@ -34,6 +34,7 @@
   #overlay { position:fixed; inset:0; background:rgba(0,0,0,.62); display:none;
     align-items:center; justify-content:center; z-index:40; }
   #overlay.show { display:flex; }
+  #overlay, #overlay * { touch-action:pan-x pan-y; }
   #ov-card { background:#f5ecd8; color:#333; border-radius:14px; padding:30px 40px; text-align:center;
     box-shadow:0 8px 30px rgba(0,0,0,.5); }
   #ov-text { font-size:30px; font-weight:bold; margin-bottom:18px; }

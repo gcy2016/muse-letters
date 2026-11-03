@@ -8,10 +8,10 @@
 <title>小橘狐大冒险</title>
 <style>
 html,body{margin:0;height:100%;background:#000;overflow:hidden;touch-action:none;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;-webkit-tap-highlight-color:transparent}
-#wrap{position:fixed;inset:0;display:flex;align-items:center;justify-content:center}
+#wrap{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;touch-action:none}
 .portrait.touch #wrap{align-items:flex-start;padding-top:max(12px,env(safe-area-inset-top))}
-canvas{display:block;image-rendering:pixelated;image-rendering:crisp-edges}
-#pad{position:fixed;left:0;right:0;bottom:0;height:150px;display:none;pointer-events:none}
+canvas{display:block;image-rendering:pixelated;image-rendering:crisp-edges;touch-action:none}
+#pad{position:fixed;left:0;right:0;bottom:0;height:150px;display:none;pointer-events:none;touch-action:none}
 .touch #pad{display:block}
 .touch #mute{top:auto;right:auto;left:50%;transform:translateX(-50%);bottom:max(20px,env(safe-area-inset-bottom))}
 .touch:not(.portrait) #dpad{width:150px;height:70px}
@@ -23,7 +23,7 @@ canvas{display:block;image-rendering:pixelated;image-rendering:crisp-edges}
 #btns{position:absolute;right:max(14px,env(safe-area-inset-right));bottom:max(16px,env(safe-area-inset-bottom));display:flex;gap:14px;align-items:flex-end;pointer-events:auto}
 .abtn{width:76px;height:76px;flex:none;border-radius:50%;font-size:16px;touch-action:none;text-align:center;line-height:1.1}
 #bB{margin-bottom:26px}
-#mute{position:fixed;top:max(8px,env(safe-area-inset-top));right:max(8px,env(safe-area-inset-right));width:38px;height:38px;border-radius:50%;border:none;background:rgba(0,0,0,.35);color:#fff;font-size:18px;z-index:5;cursor:pointer}
+#mute{position:fixed;top:max(8px,env(safe-area-inset-top));right:max(8px,env(safe-area-inset-right));width:38px;height:38px;border-radius:50%;border:none;background:rgba(0,0,0,.35);color:#fff;font-size:18px;z-index:5;cursor:pointer;touch-action:none}
 </style>
 </head>
 <body>
