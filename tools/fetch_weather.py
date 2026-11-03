@@ -43,9 +43,12 @@ def wind(kmh, deg):
     return "%s风%d级" % (DIRS[int((deg + 22.5) % 360 // 45)], level)
 
 
-# 国标（HJ 633-2012）24 小时平均浓度分段（μg/m³）→ 分指数；美标 AQI 比国标严得多，不能直接用
+# 国标（HJ 633-2012）浓度分段（μg/m³）→ 分指数；美标 AQI 比国标严得多，不能直接用
 PM25 = [0, 35, 75, 115, 150, 250, 350, 500]
 PM10 = [0, 50, 150, 250, 350, 420, 500, 600]
+NO2 = [0, 40, 80, 180, 280, 565, 750, 940]
+O3_8H = [0, 100, 160, 215, 265, 800]   # 8 小时滑动平均只分到 300，超过 800 改用 1 小时
+O3_1H = [0, 160, 200, 300, 400, 800, 1000, 1200]
 IAQI = [0, 50, 100, 150, 200, 300, 400, 500]
 
 
@@ -54,6 +57,45 @@ def iaqi(c, bps):
         if c <= bps[i]:
             return IAQI[i - 1] + (IAQI[i] - IAQI[i - 1]) * (c - bps[i - 1]) / (bps[i] - bps[i - 1])
     return 500
+
+
+def daily_aqi(hourly):
+    # 按 HJ 633-2012 算每天 AQI：PM2.5、PM10、NO2 用 24 小时平均（有效不足 12 小时不算），
+    # O3 用当天 8 小时滑动平均的最大值（有效不足 6 小时的点不算），超过 800 改用当天 1 小时最大值。
+    # 某一项缺数据只影响这一项，别的项照常算。
+    times = hourly.get("time") or []
+    cols = {k: hourly.get(k) or [] for k in ("pm2_5", "pm10", "nitrogen_dioxide", "ozone")}
+    dates = []
+    for t in times:
+        d = t[:10]
+        if d not in dates:
+            dates.append(d)
+    result = {}
+    for date in dates:
+        idx = [i for i, t in enumerate(times) if t[:10] == date]
+        subs = []
+        for key, bps in (("pm2_5", PM25), ("pm10", PM10), ("nitrogen_dioxide", NO2)):
+            arr = cols[key]
+            vals = [arr[i] for i in idx if i < len(arr) and arr[i] is not None]
+            if len(vals) >= 12:
+                subs.append(iaqi(sum(vals) / len(vals), bps))
+        o3 = cols["ozone"]
+        eights = []
+        for i in idx:
+            win = [o3[j] for j in range(max(0, i - 7), i + 1) if j < len(o3) and o3[j] is not None]
+            if len(win) >= 6:
+                eights.append(sum(win) / len(win))
+        if eights:
+            peak = max(eights)
+            if peak > 800:
+                hours = [o3[i] for i in idx if i < len(o3) and o3[i] is not None]
+                if hours:
+                    subs.append(iaqi(max(hours), O3_1H))
+            else:
+                subs.append(iaqi(peak, O3_8H))
+        if subs:
+            result[date] = round(max(subs))
+    return result
 
 
 def air(aqi):
@@ -89,15 +131,10 @@ def fetch(c):
     # 空气质量查不到不要紧，天气照样写
     try:
         a = get("https://air-quality-api.open-meteo.com/v1/air-quality", {
-            "latitude": c["lat"], "longitude": c["lon"], "timezone": "Asia/Shanghai", "forecast_days": 3, "hourly": "pm2_5,pm10",
+            "latitude": c["lat"], "longitude": c["lon"], "timezone": "Asia/Shanghai", "forecast_days": 3,
+            "hourly": "pm2_5,pm10,ozone,nitrogen_dioxide",
         }, c["id"] + "-air.json")["hourly"]
-        # 每天的 PM2.5、PM10 平均浓度 → 国标 AQI（取两个分指数里大的）
-        sums = {}
-        for t, p25, p10 in zip(a["time"], a["pm2_5"], a["pm10"]):
-            if p25 is not None and p10 is not None:
-                d = sums.setdefault(t[:10], [0, 0, 0])
-                d[0] += p25; d[1] += p10; d[2] += 1
-        aqi = {k: round(max(iaqi(v[0] / v[2], PM25), iaqi(v[1] / v[2], PM10))) for k, v in sums.items() if v[2] >= 12}
+        aqi = daily_aqi(a)
     except Exception as e:
         print("  %s 空气质量没查到：%s" % (c["city"], e))
         aqi = {}
