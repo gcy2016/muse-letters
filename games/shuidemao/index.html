@@ -942,5 +942,48 @@ function menuCat(){
 window.__cat={NET,onNetOp,snap,applySnap,get G(){return G;},get state(){return state;},step,begin,IN,touchIn,get timeLeft(){return timeLeft;},set timeLeft(v){timeLeft=v;}};
 requestAnimationFrame(loop);
 </script>
+
+<script>
+/* Safari 双击放大防护（D老师 2026-11-03，issue #71）
+ * - 禁用 viewport 缩放（meta 已设 user-scalable=no / maximum-scale=1）
+ * - 拦截双击手势：阻止双击触发的缩放，放大后不会卡住回不来
+ * - 仅对触摸设备生效，不影响鼠标/键盘操作
+ */
+(function(){
+  function lockViewport(){
+    try{
+      var m=document.querySelector('meta[name="viewport"]');
+      if(m){
+        var parts=m.content.split(',').map(function(p){return p.trim();});
+        var found=false;
+        for(var i=0;i<parts.length;i++){
+          if(parts[i].indexOf('user-scalable')===0){parts[i]='user-scalable=no';found=true;break;}
+        }
+        if(!found)parts.push('user-scalable=no');
+        for(var i=0;i<parts.length;i++){
+          if(parts[i].indexOf('maximum-scale')===0){parts[i]='maximum-scale=1';break;}
+        }
+        m.content=parts.join(',');
+      }
+    }catch(e){}
+  }
+  lockViewport();
+  // 阻止双击缩放：在 touchstart 里拦截，防止 Safari 双击触发放大
+  var lastTap=0;
+  document.addEventListener('touchstart', function(e){
+    if(!e.touches || e.touches.length>1) return; // 捏合交给上面 meta 禁掉
+    var now=Date.now();
+    if(now-lastTap<350){
+      e.preventDefault();
+      lastTap=0;
+      return;
+    }
+    lastTap=now;
+  },{passive:false});
+  // 防止长按菜单/选择干扰
+  document.addEventListener('contextmenu', function(e){ e.preventDefault(); });
+})();
+</script>
+
 </body>
 </html>

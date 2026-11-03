@@ -2,11 +2,11 @@
 <html lang="zh-CN">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
 <title>童年游戏</title>
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
-body{font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",sans-serif;background:linear-gradient(#fbf5e3,#f3e7c6);color:#5a4632;min-height:100vh;display:flex;flex-direction:column;align-items:center;padding:40px 20px}
+body{font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",sans-serif;background:linear-gradient(#fbf5e3,#f3e7c6);color:#5a4632;min-height:100vh;display:flex;flex-direction:column;align-items:center;padding:40px 20px;touch-action:none}
 h1{font-size:28px;margin-bottom:8px;color:#5a4632}
 .sub{color:#8a7358;font-size:14px;margin-bottom:40px}
 .games{display:flex;flex-direction:column;gap:20px;width:100%;max-width:400px}
@@ -92,5 +92,48 @@ h1{font-size:28px;margin-bottom:8px;color:#5a4632}
 </a>
 </div>
 <div class="footer">你 vs 小miu · 纯前端本地运行</div>
+
+<script>
+/* Safari 双击放大防护（D老师 2026-11-03，issue #71）
+ * - 禁用 viewport 缩放（meta 已设 user-scalable=no / maximum-scale=1）
+ * - 拦截双击手势：阻止双击触发的缩放，放大后不会卡住回不来
+ * - 仅对触摸设备生效，不影响鼠标/键盘操作
+ */
+(function(){
+  function lockViewport(){
+    try{
+      var m=document.querySelector('meta[name="viewport"]');
+      if(m){
+        var parts=m.content.split(',').map(function(p){return p.trim();});
+        var found=false;
+        for(var i=0;i<parts.length;i++){
+          if(parts[i].indexOf('user-scalable')===0){parts[i]='user-scalable=no';found=true;break;}
+        }
+        if(!found)parts.push('user-scalable=no');
+        for(var i=0;i<parts.length;i++){
+          if(parts[i].indexOf('maximum-scale')===0){parts[i]='maximum-scale=1';break;}
+        }
+        m.content=parts.join(',');
+      }
+    }catch(e){}
+  }
+  lockViewport();
+  // 阻止双击缩放：在 touchstart 里拦截，防止 Safari 双击触发放大
+  var lastTap=0;
+  document.addEventListener('touchstart', function(e){
+    if(!e.touches || e.touches.length>1) return; // 捏合交给上面 meta 禁掉
+    var now=Date.now();
+    if(now-lastTap<350){
+      e.preventDefault();
+      lastTap=0;
+      return;
+    }
+    lastTap=now;
+  },{passive:false});
+  // 防止长按菜单/选择干扰
+  document.addEventListener('contextmenu', function(e){ e.preventDefault(); });
+})();
+</script>
+
 </body>
 </html>
