@@ -46,7 +46,72 @@ def wind(kmh, deg):
 # 国标（HJ 633-2012）24 小时平均浓度分段（μg/m³）→ 分指数；美标 AQI 比国标严得多，不能直接用
 PM25 = [0, 35, 75, 115, 150, 250, 350, 500]
 PM10 = [0, 50, 150, 250, 350, 420, 500, 600]
+NO2 = [0, 40, 80, 180, 280, 565, 750, 940]
+O3_8H = [0, 100, 160, 215, 265, 800]
+O3_1H = [0, 160, 200, 300, 400, 800, 1000, 1200]
 IAQI = [0, 50, 100, 150, 200, 300, 400, 500]
+
+
+def daily_aqi(hourly):
+    # Open-Meteo 空气质量接口返回的 hourly 字典 -> {日期: AQI 整数}。
+    # PM2.5、PM10、NO2 取当天 24 小时平均（有效小时 < 12 则该项当天不算）；
+    # O3 取当天 8 小时滑动平均的最大值（每点取 h-7 到 h 的有效值平均，
+    # 有效值 < 6 则该点不算，可跨到前一天；当天一个点都算不出则该项不算）；
+    # O3 的 8 小时最大值 > 800 时，改用当天 1 小时浓度的最大值按 O3 1 小时分段算。
+    # 某一项缺数据（小时为 None，或接口根本没返回该项）只影响该项，不连累别的项。
+    if not hourly or not hourly.get("time"):
+        return {}
+    times = hourly["time"]
+    avg = {}  # 日期 -> {污染物: [总和, 有效小时数]}
+    o3_8max = {}
+    o3_1max = {}
+
+    def val(name, i):
+        vals = hourly.get(name)
+        if not vals or i >= len(vals):
+            return None
+        return vals[i]
+
+    for i, t in enumerate(times):
+        if not t:
+            continue
+        date = t[:10]
+        for name in ("pm2_5", "pm10", "nitrogen_dioxide"):
+            v = val(name, i)
+            if v is None:
+                continue
+            entry = avg.setdefault(date, {}).setdefault(name, [0, 0])
+            entry[0] += v
+            entry[1] += 1
+        # O3 当天 1 小时最大值
+        v = val("ozone", i)
+        if v is not None:
+            if date not in o3_1max or v > o3_1max[date]:
+                o3_1max[date] = v
+        # O3 8 小时滑动平均：h 和前面共 8 个小时，可跨到前一天
+        window = [val("ozone", j) for j in range(max(0, i - 7), i + 1)]
+        window = [x for x in window if x is not None]
+        if len(window) >= 6:
+            m = sum(window) / len(window)
+            if date not in o3_8max or m > o3_8max[date]:
+                o3_8max[date] = m
+
+    result = {}
+    for date in sorted(set(avg) | set(o3_8max)):
+        subs = []
+        for name, bps in (("pm2_5", PM25), ("pm10", PM10), ("nitrogen_dioxide", NO2)):
+            entry = avg.get(date, {}).get(name)
+            if entry and entry[1] >= 12:
+                subs.append(iaqi(entry[0] / entry[1], bps))
+        if date in o3_8max:
+            if o3_8max[date] > 800:
+                if date in o3_1max:
+                    subs.append(iaqi(o3_1max[date], O3_1H))
+            else:
+                subs.append(iaqi(o3_8max[date], O3_8H))
+        if subs:
+            result[date] = round(max(subs))
+    return result
 
 
 def iaqi(c, bps):
@@ -89,15 +154,10 @@ def fetch(c):
     # 空气质量查不到不要紧，天气照样写
     try:
         a = get("https://air-quality-api.open-meteo.com/v1/air-quality", {
-            "latitude": c["lat"], "longitude": c["lon"], "timezone": "Asia/Shanghai", "forecast_days": 3, "hourly": "pm2_5,pm10",
+            "latitude": c["lat"], "longitude": c["lon"], "timezone": "Asia/Shanghai", "forecast_days": 3, "hourly": "pm2_5,pm10,ozone,nitrogen_dioxide",
         }, c["id"] + "-air.json")["hourly"]
-        # 每天的 PM2.5、PM10 平均浓度 → 国标 AQI（取两个分指数里大的）
-        sums = {}
-        for t, p25, p10 in zip(a["time"], a["pm2_5"], a["pm10"]):
-            if p25 is not None and p10 is not None:
-                d = sums.setdefault(t[:10], [0, 0, 0])
-                d[0] += p25; d[1] += p10; d[2] += 1
-        aqi = {k: round(max(iaqi(v[0] / v[2], PM25), iaqi(v[1] / v[2], PM10))) for k, v in sums.items() if v[2] >= 12}
+        # 每天各污染物按国标 HJ 633-2012 算分指数，取最大的当 AQI
+        aqi = daily_aqi(a)
     except Exception as e:
         print("  %s 空气质量没查到：%s" % (c["city"], e))
         aqi = {}
