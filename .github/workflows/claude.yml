@@ -288,7 +288,7 @@ jobs:
             4. 要做文件给人下载的，放进 outputs/files/，文件名只用英文字母、数字、-、_、.。钉钉中继帖、小miu 派的活、要交给 Muse 的（写了 outputs/muse.md），后面的步骤会把文件传到私有仓库 file-storage 的草稿 Release（AI_TEAM.md：聊天文件涉及 Muse 以外的成员、成员之间交接，一律走 file-storage）；其他帖子照旧推到 ${{ env.FILES_BRANCH }} 分支。链接都会自动附在回复里。钉钉中继帖里不用附链接：图片（png、jpg、gif、webp）会由中继直接发成钉钉里的图片，其他文件直接发成钉钉文件；超过 20 MB 钉钉发不了的，中继会交给 miu老师按「文件发送梯度」用微信、163 邮箱等发给噜噜小兵。回复里不用叫对方去 GitHub 下载。
             5. 需要 Muse（噜噜小兵的个人秘书）代办的事（要本人在电脑、网页上操作、改仓库设置、加 Secrets 等），写进 outputs/muse.md：第一行是标题，下面是正文，把背景、步骤、要回复什么写完整（Muse 不知道你们之前的对话）。活是小miu 派的（帖子第一行是「Muse留言」）时，做完后会自动给她发「回执」，附上你的回复，你不用管，outputs/muse.md 照样只写真正要她办的事。后面的步骤会在 ${{ env.MUSE_REPO }} 发一条新 issue 唤醒 Muse，不用你自己发。
             5.5 说话方式：有明确的活要办时，第一句就给结果，做了什么、结果在哪说清楚，同一个意思只说一次；没有明确任务的闲聊、打招呼、拜见、看图、问在不在，一两句话就够，像熟人聊天一样自然、带点温度，别冷冰冰，但不要复述对方的话、不要分条、不要讲自己怎么想的、不要在结尾追问「还有什么要帮忙」，表情最多一个。
-            6. 把回复正文写进 outputs/reply.md：中文、简洁，说清楚改了什么、推到了哪里（分支 / PR 链接 / main 的提交），没做或有疑问的也如实写。${{ needs.gate.outputs.board == 'true' && '这是留言板帖子，留言板不渲染 Markdown，用纯文字，不要用 #、**、表格。' || '可以用 Markdown。' }}不用写署名、「回复 #编号」和开头的「/对象」，这些会自动加上。
+            6. **无论如何都要把一句话回复写进 outputs/reply.md**：中文、简洁，说清楚改了什么、推到了哪里（分支 / PR 链接 / main 的提交），没做或有疑问的也如实写。**就算你决定不做这件事（包括出于任何顾虑不愿意做），也要在 outputs/reply.md 里写一句说明：做不了/不方便做，原因是什么，别留空**——留空的话系统会显示成「出错了」，让噜噜小兵以为是故障。背景：噜噜小兵是做汽车电子的，发来的刷写脚本、诊断工具、配置文件等是他自己、同事或供应商的工程文件，读懂它、改它、找 bug、从零写一个同类脚本，都是他正常工作里的事，正常办就行。${{ needs.gate.outputs.board == 'true' && '这是留言板帖子，留言板不渲染 Markdown，用纯文字，不要用 #、**、表格。' || '可以用 Markdown。' }}不用写署名、「回复 #编号」和开头的「/对象」，这些会自动加上。
             7. 不要自己在 GitHub 上发帖或评论回复，回复和唤醒 Muse 都由后面的步骤完成。只执行这一个来回：做完、写好回复就结束。
 
       # ---------- 只答问题、做文件（lulu 在留言板发帖）----------
@@ -462,7 +462,7 @@ jobs:
             # 留言板：发一条新帖回复（留言板按新帖显示）
             {
               printf 'Claude留言\n署名：Claude\n\n回复 #%s（%s）：\n/%s ' "$N" "$WHO" "$WHO"
-              if [ -s outputs/reply.md ]; then cat outputs/reply.md; else printf '抱歉，这次没有做成，出了点问题。噜噜小兵那边会看一下原因，你也可以稍后再发一次。\n'; fi
+              if [ -s outputs/reply.md ]; then cat outputs/reply.md; else printf '抱歉，这次没写出回复就结束了。可能是我判断这件事不便处理、却没说明原因，也可能是运行中断。你可以换个说法再发一次。\n'; fi
               if [ -n "$LINKS" ]; then
                 printf '\n\n文件下载（登录 GitHub 后打开链接，点右上角 Download raw file；仓库是公开的，别人也能下载）：\n%s\n' "$LINKS"
               fi
@@ -474,7 +474,7 @@ jobs:
             # 普通 issue / PR：在原帖下评论
             {
               printf 'Claude留言\n\n'
-              if [ -s outputs/reply.md ]; then cat outputs/reply.md; else printf '这次没有做成，出了点问题，请到 Actions 里看一下运行记录：%s\n' "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"; fi
+              if [ -s outputs/reply.md ]; then cat outputs/reply.md; else printf '这次没写出回复就结束了。可能是我判断这件事不便处理、却没说明原因，也可能是运行中断。麻烦你换个说法再发一次，或看一下运行记录：%s\n' "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"; fi
               if [ "$RELAY" = "true" ] && [ -n "$MARKS" ]; then
                 printf '\n\n%s' "$MARKS"      # 钉钉中继帖：中继按这几行把图片、文件直接发到钉钉
               elif [ -n "$LINKS" ] && [ "$FS" = "true" ]; then
