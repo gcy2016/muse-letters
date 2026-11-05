@@ -1,6 +1,8 @@
 // 噜噜岛：岛上是噜噜之家（house.js），从外面看盖着屋顶。右下角常驻“留言板”按钮（board-ui.js，有新留言亮红点）；
 // 点房子的门进屋（house.html，从玄关开始看）。门锁：这个浏览器开过锁，门就开着；没开过，点门先输密码。
 // 小岛单位是米，和房子一样。小miu 和 lulu 先只待在房子里。
+// 噜噜、噜妹（站着的小河马，hippo.js）在门前草地上自己溜达，点它们会挥手、跳舞；站哪、在哪溜达写在 layout.js 的 ISLAND。
+// 它们的模型等房子加载好了再下载（不拖慢首屏）。
 // 天气：岛上的天空跟着天气变（19 点前今天、之后明天，weather-fx.js），数据见 weather-data.js；天气牌只在屋里玄关（house.html）
 // ?from=house：从屋里出来，镜头停在门口；?wx=小雨 用示例数据看某种天气的效果（?wx=demo 示例原样）
 //
@@ -15,7 +17,7 @@ import { RoomEnvironment } from "./lib/RoomEnvironment.js";
 import { isUnlocked, unlock } from "./lock.js";
 import { getWeather, skyKind, skyPlace, showOffset, beijingYmd as beijingDay, sources as weatherSources } from "./weather-data.js";
 import { makeWeatherFx } from "./weather-fx.js";
-import { ISLAND as ISLAND_LAYOUT, arrange } from "./layout.js";
+import { ISLAND as ISLAND_LAYOUT, arrange, facingAngle } from "./layout.js";
 import { mountBoardButton } from "./board-ui.js";
 
 var params = new URLSearchParams(location.search);
@@ -289,6 +291,39 @@ setInterval(refreshWeather, 30 * 60 * 1000);
 var wxShown = showOffset() + beijingDay();
 setInterval(function () { var k = showOffset() + beijingDay(); if (k !== wxShown) { wxShown = k; refreshWeather(); } }, 60 * 1000);
 
+// 噜噜、噜妹：房子好了再下载（hippo.js 和模型都是那时才拿），位置、溜达范围见 layout.js
+var hippos = [];
+function loadHippos(env) {
+  import("./hippo.js").then(function (mod) {
+    [["lulu", ISLAND_LAYOUT.hippoLulu], ["lumei", ISLAND_LAYOUT.hippoLumei]].forEach(function (pair) {
+      var spec = pair[1];
+      if (!spec) return;
+      mod.loadHippo(pair[0], {
+        scale: spec.scale, roam: spec.roam,
+        avoid: function (x, z) { return hippos.some(function (o) { return o.who !== pair[0] && Math.hypot(o.root.position.x - x, o.root.position.z - z) < 0.75; }); },
+      }).then(function (h) {
+        h.root.position.set(spec.pos[0], GROUND, spec.pos[2]);
+        h.root.rotation.y = facingAngle(spec.facing);
+        h.root.traverse(function (o) {
+          if (o.isMesh) [].concat(o.material).forEach(function (m) { if (m.isMeshStandardMaterial) { m.envMap = env; houseMats.push(m); } });
+        });
+        setHouseEnv();
+        scene.add(h.root);
+        hippos.push(h);
+        h.setFree(true);
+      }).catch(function (e) { console.warn(pair[0] + " 加载失败：", e.message); });
+    });
+  });
+}
+var TAP_PLAYS = ["挥手 眨眼", "跳舞", "跳2下", "转圈 挥手", "点头2下 摇尾巴"];
+function tapHippo(h) {
+  h.stop();
+  // 先转过来对着镜头，再随便做一个
+  var p = camera.position;
+  h.play([["face", 1, { x: p.x, z: p.z }]]);
+  h.play(TAP_PLAYS[Math.floor(Math.random() * TAP_PLAYS.length)]);
+}
+
 // 镜头：一开始在岛前方，能看到房子正面和门；从屋里出来时停在门口
 var hint = document.getElementById("hint");
 var HINT = "拖动旋转 · 滚轮/双指缩放 · 点门进屋";
@@ -326,6 +361,7 @@ loadHouse(null, function (p) { hint.textContent = "房子加载中… " + Math.r
   house.root.updateMatrixWorld(true);
   doorWorld = house.root.localToWorld(house.doorPosition.clone()).setY(HOUSE_POS.y + 1.2);
   hint.textContent = HINT;
+  loadHippos(env);
   return isUnlocked();
 }).then(function (open) {
   if (house) house.setDoor(open);
@@ -358,7 +394,7 @@ function enterHouse() {
 // 右下角常驻的留言板按钮
 mountBoardButton();
 
-// 点击：门
+// 点击：门、小河马
 var raycaster = new THREE.Raycaster();
 var pointer = new THREE.Vector2();
 function hit(ev) {
@@ -366,6 +402,13 @@ function hit(ev) {
   pointer.x = ((ev.clientX - rect.left) / rect.width) * 2 - 1;
   pointer.y = -((ev.clientY - rect.top) / rect.height) * 2 + 1;
   raycaster.setFromCamera(pointer, camera);
+  var best = null, bestD = Infinity;
+  hippos.forEach(function (h) { // 小河马：点身上任何地方都算（骨骼动画的模型用包围球判断就够了）
+    var c = h.root.position.clone(); c.y += 0.45 * (h.root.children[0].scale.x / 0.8);
+    var d = raycaster.ray.distanceSqToPoint(c);
+    if (d < 0.45 * 0.45 && raycaster.ray.origin.distanceTo(c) < bestD) { best = h; bestD = raycaster.ray.origin.distanceTo(c); }
+  });
+  if (best) return best;
   if (!doorHotspot) return null;
   return raycaster.intersectObject(doorHotspot).length ? "door" : null; // 房子从外面只认门
 }
@@ -378,6 +421,7 @@ canvas.addEventListener("pointerup", function (e) {
   if (moved >= 6) return; // 拖动旋转时不算点击
   var what = hit(e);
   if (what === "door") enterHouse();
+  else if (what && what.play) tapHippo(what);
 });
 canvas.addEventListener("pointermove", function (e) {
   if (e.pointerType === "mouse") canvas.style.cursor = hit(e) ? "pointer" : "";
@@ -409,7 +453,9 @@ window.addEventListener("pageshow", function (e) {
 var clock = new THREE.Clock(), lastT = 0;
 renderer.setAnimationLoop(function () {
   var t = clock.getElapsedTime();
-  fx.update(t - lastT); lastT = t;
+  var dt = t - lastT;
+  fx.update(dt); lastT = t;
+  hippos.forEach(function (h) { h.update(dt); });
   clouds.forEach(function (c, i) { c.position.x += 0.004 * (i + 1); if (c.position.x > 50) c.position.x = -50; });
   water.position.y = Math.sin(t * 0.8) * 0.05;
   if (goal) {
@@ -422,4 +468,5 @@ renderer.setAnimationLoop(function () {
   renderer.render(scene, camera);
 });
 window.CAMERA = camera;
+window.HIPPOS = hippos; // 调试用：岛上的小河马
 window.HOUSE_GET = function () { return house; };
