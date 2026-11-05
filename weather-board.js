@@ -196,7 +196,8 @@ export function weatherDetail(wx, error) {
     return box;
   }
   var head = wx.places.filter(function (p) { return !p.stale; })[0] || wx.places[0], name = dayName(head.offset);
-  box.append(mk("h3", { textContent: name ? name + "的天气" : "天气预报" }));
+  var headTitle = name === "今天" ? "今日天气" : (name ? name + "的天气" : "天气预报");
+  box.append(mk("h3", { textContent: headTitle }));
   if (wx.offline) box.append(mk("p", { className: "wx-warn", textContent: "没连上 GitHub，显示的是上次读到的。" }));
   wx.places.forEach(function (p) {
     var card = mk("div", { className: "wx-place" }, [mk("h4", { textContent: p.name + (p.who ? "　" + p.who : "") + (p.date ? "　" + p.date : "") })]);
