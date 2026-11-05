@@ -6,6 +6,7 @@
 //   scene.add(h.root);                 // h.root.position / rotation.y 决定站在哪、朝哪（脸朝 +z 时 rotation.y = 0）
 //   h.update(dt);                      // 每帧调用（dt 秒）
 //   h.play("挥手 跳2下 眨眼");          // 按顺序做一串动作，返回 Promise；也可传 [["wave", 1], ["jump", 2]]
+//   opts.still = true：静静站着只眨眼（不喘气、不晃）
 //   h.stop();  h.setFree(true);        // 停下；自由活动（没事时自己在 roam 范围里走走、做点小动作）
 //
 // 动作名（中文 / 英文都认）：走 walk（数字是步数）、跳 jump、挥手 wave、点头 nod、转头 look、转身 turn（数字是圈数，负数往右转）、
@@ -320,7 +321,7 @@ function makeHippo(who, model, opts) {
     dt = Math.min(dt, 0.1);
     time += dt;
     resetPose();
-    breathe(time);
+    if (!opts.still) breathe(time); // still：只眨眼，身子不动（胳膊和身子还没切干净，先不让它动）
     if (!current) {
       while (queue.length && !begin(queue.shift())) {}
       if (!current && resolveAll) { var r = resolveAll; resolveAll = null; r(); }

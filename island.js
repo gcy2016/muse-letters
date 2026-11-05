@@ -1,7 +1,7 @@
 // 噜噜岛：岛上是噜噜之家（house.js），从外面看盖着屋顶。右下角常驻“留言板”按钮（board-ui.js，有新留言亮红点）；
 // 点房子的门进屋（house.html，从玄关开始看）。门锁：这个浏览器开过锁，门就开着；没开过，点门先输密码。
 // 小岛单位是米，和房子一样。小miu 和 lulu 先只待在房子里。
-// 噜噜、噜妹（站着的小河马，hippo.js）在门前草地上自己溜达，点它们会挥手、跳舞；站哪、在哪溜达写在 layout.js 的 ISLAND。
+// 噜噜、噜妹（站着的小河马，hippo.js）站在门前草地上眨眼，点它们也眨眼（走动、挥手等动作先关着）；站哪、在哪溜达写在 layout.js 的 ISLAND。
 // 它们的模型等房子加载好了再下载（不拖慢首屏）。
 // 天气：岛上的天空跟着天气变（19 点前今天、之后明天，weather-fx.js），数据见 weather-data.js；天气牌只在屋里玄关（house.html）
 // ?from=house：从屋里出来，镜头停在门口；?wx=小雨 用示例数据看某种天气的效果（?wx=demo 示例原样）
@@ -299,7 +299,7 @@ function loadHippos(env) {
       var spec = pair[1];
       if (!spec) return;
       mod.loadHippo(pair[0], {
-        scale: spec.scale, roam: spec.roam,
+        scale: spec.scale, roam: spec.roam, still: true,
         avoid: function (x, z) { return hippos.some(function (o) { return o.who !== pair[0] && Math.hypot(o.root.position.x - x, o.root.position.z - z) < 0.75; }); },
       }).then(function (h) {
         h.root.position.set(spec.pos[0], GROUND, spec.pos[2]);
@@ -310,18 +310,13 @@ function loadHippos(env) {
         setHouseEnv();
         scene.add(h.root);
         hippos.push(h);
-        h.setFree(true);
+        // 先只站着眨眼（胳膊和身子还没切干净，走动、挥手等以后再开：改成 h.setFree(true)、去掉 still）
       }).catch(function (e) { console.warn(pair[0] + " 加载失败：", e.message); });
     });
   });
 }
-var TAP_PLAYS = ["挥手 眨眼", "跳舞", "跳2下", "转圈 挥手", "点头2下 摇尾巴"];
-function tapHippo(h) {
-  h.stop();
-  // 先转过来对着镜头，再随便做一个
-  var p = camera.position;
-  h.play([["face", 1, { x: p.x, z: p.z }]]);
-  h.play(TAP_PLAYS[Math.floor(Math.random() * TAP_PLAYS.length)]);
+function tapHippo(h) { // 点它：眨两下眼
+  h.play("眨眼2下");
 }
 
 // 镜头：一开始在岛前方，能看到房子正面和门；从屋里出来时停在门口
