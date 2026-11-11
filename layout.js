@@ -34,9 +34,9 @@ export var ISLAND = {
   // 煤油灯：门右边的墙上
   lamp: { onHouse: true, pos: [1.2, 1.70, 3.5], facing: "+z", scale: 1.4 },
   // 噜噜、噜妹（站着的小河马，hippo.js）：pos 是刚打开时站的地方（岛上坐标，y 不用管），facing 朝向；
-  // 现在只站在 pos 不动、眨眼；roam 是以后打开走动时溜达的范围（圆心 [x, z] + 半径，米）。挪地方改 pos。
+  // free: true 的自己溜达、做小动作（roam 是溜达的范围：圆心 [x, z] + 半径，米）；没写 free 的只站在 pos 不动、眨眼。挪地方改 pos。
   // scale 是模型缩放（1 = 原大小约 1.13 米高；0.85 ≈ 0.96 米，比门矮一大截）。范围别压到门前小路（x 在 -1 ~ 1 之间）和灌木、石头上
-  hippoLulu: { pos: [1.6, 0, 2.5], facing: 0.3, scale: 0.85, roam: { center: [2.1, 2.75], radius: 0.95 } },
+  hippoLulu: { pos: [1.6, 0, 2.5], facing: 0.3, scale: 0.85, free: true, roam: { center: [2.1, 2.75], radius: 0.95 } },
   hippoLumei: { pos: [2.5, 0, 2.8], facing: -0.2, scale: 0.85, roam: { center: [2.1, 2.75], radius: 0.95 } },
 };
 

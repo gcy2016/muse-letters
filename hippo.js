@@ -21,8 +21,9 @@ export var HIPPO_URLS = {
   lumei: new URL("./assets/hippo/lumei.glb", import.meta.url).href,
 };
 // 每只的小差别：步子大小（米，按模型原大小）、走一步几秒
+// wave：挥手时大臂往外抬多少、往前伸多少、小臂再往上弯多少（弧度）。噜噜（2026-11 的新模型）头大，手举太高会钻到脑袋后面
 var STYLE = {
-  lulu: { stride: 0.16, stepTime: 0.36 },
+  lulu: { stride: 0.16, stepTime: 0.36, wave: { up: 1.35, fwd: 0.75, bend: 0.75 } },
   lumei: { stride: 0.14, stepTime: 0.32 },
 };
 var NAMES = {
@@ -222,9 +223,10 @@ function makeHippo(who, model, opts) {
         apply: function (u, dt, t) {
           var e = Math.min(1, t / 0.35, (dur - t) / 0.35);
           e = smooth(e);
-          rot("armR_upper", Z, -2.3 * e);
-          rot("armR_upper", X, -0.25 * e);
-          rot("armR_lower", Z, Math.sin(t * 11) * 0.45 * e - 0.2 * e);
+          var w = style.wave || { up: 2.3, fwd: 0.25, bend: 0.2 };
+          rot("armR_upper", Z, -w.up * e);
+          rot("armR_upper", X, -w.fwd * e);
+          rot("armR_lower", Z, Math.sin(t * 11) * 0.45 * e - w.bend * e);
           rot("head", Z, -0.12 * e);
           rot("chest", Z, 0.05 * e);
           if (t > 0.3 && t < 0.55) pose.blinkL = pose.blinkR = Math.sin((t - 0.3) / 0.25 * Math.PI) * 0.8; // 笑眯眯
